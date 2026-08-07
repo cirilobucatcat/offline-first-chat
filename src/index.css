@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+    --color-primary: #0D47A1;
+    --color-pale-blue: #E3F2FD;
+    --color-ink: #0F3040;
+}
+
+::selection {
+    background-color: rgba(13, 71, 161, 0.2);
+    color: #0F3040;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #0F3040;
+    box-shadow: 0 0 0 1000px #FFFFFF inset;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+@keyframes fadeSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-card {
+    animation: fadeSlideUp 0.5s ease-out;
+}
+
+.field-fade {
+    animation: fadeSlideUp 0.35s ease-out;
+}
+
+.btn-primary {
+    box-shadow: 0 4px 14px rgba(13, 71, 161, 0.3);
+    transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(13, 71, 161, 0.38);
+}
+
+.btn-primary:active {
+    filter: brightness(0.94);
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .auth-card,
+    .field-fade {
+        animation: none;
+    }
+
+    .btn-primary:hover {
+        transform: none;
+    }
+}
