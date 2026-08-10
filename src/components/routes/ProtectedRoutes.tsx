@@ -13,8 +13,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         className="flex h-screen w-full items-center justify-center bg-white"
       >
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-[#0D47A1]" aria-hidden="true" />
-          <p className="text-sm font-medium text-[#0F3040]/70">Loading...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+          <p className="text-sm font-medium text-ink/70">Loading...</p>
         </div>
       </div>
     );
