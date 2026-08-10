@@ -4,7 +4,7 @@ import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
 import { ProtectedRoute } from './components/routes/ProtectedRoutes';
-import Chat from './pages/Chat';
+import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
 import Auth from './pages/Auth';
 
