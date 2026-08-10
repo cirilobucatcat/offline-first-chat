@@ -1,9 +1,9 @@
 import { MessageCircle, ShieldCheck, WifiOff, Zap } from "lucide-react";
-import { INK, PALE_BLUE, PRIMARY } from "../../lib/constants";
-import { FeatureItem } from "./FeatureItem";
+import { INK, PALE_BLUE, PRIMARY } from "../lib/constants";
+import { FeatureItem } from "../components/auth/FeatureItem";
 import { useEffect, useState } from "react";
-import SignInForm from "./SignInForm";
-import SignUpForm from "./SignUpForm";
+import SignInForm from "../components/auth/SignInForm";
+import SignUpForm from "../components/auth/SignUpForm";
 
 export default function Auth() {
 

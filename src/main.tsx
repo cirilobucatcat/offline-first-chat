@@ -3,20 +3,15 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
-import { SignIn } from './pages/Signin';
-import { SignUp } from './pages/SignUp';
 import { ProtectedRoute } from './components/routes/ProtectedRoutes';
 import Chat from './pages/Chat';
 import NotFound from './pages/NotFound';
+import Auth from './pages/Auth';
 
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <SignIn />
-  },
-  {
-    path: '/signup',
-    element: <SignUp />
+    element: <Auth />
   },
   {
     path: '/chat',

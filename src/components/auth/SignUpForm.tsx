@@ -1,33 +1,74 @@
-import { useState } from 'react'
+import { useState, type SubmitEventHandler } from 'react'
 import { Field } from '../Field'
 import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, User } from 'lucide-react'
 import { PALE_BLUE, PRIMARY } from '../../lib/constants'
 import { StrengthMeter } from '../StrengthMeter'
 import { Checkbox } from '../Checkbox'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { auth, db } from '../../lib/firebase'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { useNavigate } from 'react-router'
 
 export default function SignUpForm() {
 
-  const [name, setName] = useState('')
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setLoading] = useState(false)
   const [agree, setAgree] = useState(false)
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = () => {
-    setIsLoading(true)
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
 
-  return (<>
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(user, { displayName });
+
+      await setDoc(doc(db, 'users', user.uid), {
+        displayName,
+        email,
+        createdAt: serverTimestamp(),
+      });
+
+      navigate('/chat');
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-in-use') {
+        setError('That email is already registered.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password should be at least 6 characters.');
+      } else {
+        setError('Something went wrong. Try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (<form className='flex flex-col gap-y-4' onSubmit={handleSubmit}>
+    {error && (
+      <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+        {error}
+      </div>
+    )}
     <Field
       id="name"
       label="Full name"
       icon={User}
-      value={name}
-      onChange={(e) => setName(e.target.value)}
+      value={displayName}
+      onChange={(e) => setDisplayName(e.target.value)}
       placeholder="Ana Dela Cruz"
       autoComplete="name"
     />
@@ -40,7 +81,6 @@ export default function SignUpForm() {
       value={email}
       onChange={(e) => setEmail(e.target.value)}
       placeholder="you@example.com"
-      autoComplete="email"
     />
 
     <div>
@@ -61,7 +101,6 @@ export default function SignUpForm() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="••••••••"
-        autoComplete="current-password"
         rightSlot={
           <button
             type="button"
@@ -111,16 +150,15 @@ export default function SignUpForm() {
     </Checkbox>
 
     <button
-      type="button"
-      onClick={handleSubmit}
-      disabled={isLoading}
+      type="submit"
+      disabled={isLoading || !agree}
       aria-busy={isLoading}
       className="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 mt-7"
       style={{
         backgroundColor: PRIMARY,
         color: PALE_BLUE,
-        opacity: isLoading ? 0.75 : 1,
-        cursor: isLoading ? "not-allowed" : "pointer",
+        opacity: isLoading || !agree ? 0.75 : 1,
+        cursor: isLoading || !agree ? "not-allowed" : "pointer",
       }}
     >
       {isLoading ? (
@@ -135,6 +173,5 @@ export default function SignUpForm() {
         </>
       )}
     </button>
-  </>
-  )
+  </form>)
 }

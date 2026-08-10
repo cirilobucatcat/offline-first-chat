@@ -2,7 +2,10 @@ import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Field } from "../Field";
 import { PALE_BLUE, PRIMARY } from "../../lib/constants";
 import { Checkbox } from "../Checkbox";
-import { useState } from "react";
+import { useState, type SubmitEventHandler } from "react";
+import { useNavigate } from "react-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../lib/firebase";
 
 export default function SignInForm() {
 
@@ -10,14 +13,38 @@ export default function SignInForm() {
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setLoading] = useState(false)
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = () => {
-    
-  }
- 
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      navigate('/chat');
+    } catch (err: any) {
+      if (err.code === 'auth/invalid-credential') {
+        setError('Wrong email or password.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Try again later.');
+      } else {
+        setError('Something went wrong. Try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
       <Field
         id="email"
         label="Email address"
@@ -67,8 +94,7 @@ export default function SignInForm() {
       </Checkbox>
 
       <button
-        type="button"
-        onClick={handleSubmit}
+        type="submit"
         disabled={isLoading}
         aria-busy={isLoading}
         className="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 mt-7"
@@ -91,6 +117,5 @@ export default function SignInForm() {
           </>
         )}
       </button>
-    </>
-  )
+    </form>)
 }
