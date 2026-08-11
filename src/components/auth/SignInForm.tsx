@@ -1,11 +1,11 @@
 import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Field } from "../Field";
-import { PALE_BLUE, PRIMARY } from "../../lib/constants";
 import { Checkbox } from "../Checkbox";
 import { useState, type SubmitEventHandler } from "react";
 import { useNavigate } from "react-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../lib/firebase";
+import { auth } from "@/lib/firebase";
+import { COLOR } from "@/lib/constants";
 
 export default function SignInForm() {
 
@@ -64,7 +64,7 @@ export default function SignInForm() {
             <button
               type="button"
               className="text-sm font-medium hover:underline"
-              style={{ color: PRIMARY }}
+              style={{ color: COLOR.primary }}
             >
               Forgot password?
             </button>
@@ -99,8 +99,8 @@ export default function SignInForm() {
         aria-busy={isLoading}
         className="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 mt-7"
         style={{
-          backgroundColor: PRIMARY,
-          color: PALE_BLUE,
+          backgroundColor: COLOR.primary,
+          color: COLOR.paleBlue,
           opacity: isLoading ? 0.75 : 1,
           cursor: isLoading ? "not-allowed" : "pointer",
         }}

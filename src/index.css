@@ -68,3 +68,34 @@ input:-webkit-autofill:focus {
         transform: none;
     }
 }
+
+.wc-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.wc-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(13, 71, 161, 0.14);
+    border-radius: 9999px;
+}
+
+.wc-item:hover {
+    background-color: #E3F2FD;
+}
+
+.wc-icon-btn {
+    color: rgba(15, 48, 64, 0.72);
+}
+
+.wc-icon-btn:hover {
+    background-color: #E3F2FD;
+    color: #0D47A1;
+}
+
+.wc-focus:focus {
+    outline: none;
+}
+
+.wc-focus:focus-visible {
+    outline: 2px solid #0D47A1;
+    outline-offset: 2px;
+}
