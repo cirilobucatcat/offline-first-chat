@@ -6,16 +6,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-
 type MessageAreaProps = {
     conversation: Conversation | null
     onBack: () => void,
     mobileHidden?: boolean
 }
 
-
 export default function MessageArea({ conversation, onBack, mobileHidden = false }: MessageAreaProps) {
-
 
     const { user } = useAuth();
     const { messages } = useMessages(conversation?.id ?? null);
@@ -52,7 +49,7 @@ export default function MessageArea({ conversation, onBack, mobileHidden = false
 
     if (!conversation) {
         return (
-            <main className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-1 items-center justify-center`} style={{ backgroundColor: COLOR.paleBlue }}>
+            <main className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-1 items-center justify-center overflow-hidden`} style={{ backgroundColor: COLOR.paleBlue }}>
                 <p style={{ color: COLOR.muted }}>Select a conversation to start chatting</p>
             </main>
         );

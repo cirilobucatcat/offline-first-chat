@@ -106,7 +106,7 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
         )}
 
         <ul>
-          {filteredConversations.map((c, i) => {
+          {filteredConversations.map((c) => {
             if (!user) return null;
             const otherUid = c.participants.find((p) => p !== user.uid);
             const other = otherUid ? c.participantInfo[otherUid] : undefined;
@@ -117,12 +117,12 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
             const readByOther = fromMe && otherUid ? isReadByOther(c, otherUid) : false;
 
             return (
-              <li key={c.id}>
+              <li key={c.id} className='group'>
                 <button
                   type="button"
                   onClick={() => onSelect(c.id)}
                   aria-current={isActive ? 'true' : undefined}
-                  className="wc-item wc-focus w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                  className="wc-item wc-focus w-full flex items-center gap-3 px-4 py-3 group-hover:cursor-pointer group-hover:bg-pale-blue/40! text-left transition-colors"
                   style={{
                     backgroundColor: isActive ? COLOR.paleBlue : 'transparent',
                     borderLeft: `3px solid ${isActive ? COLOR.primary : 'transparent'}`,
@@ -149,7 +149,7 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
                         <span className="truncate">{c.lastMessage || 'Say hello 👋'}</span>
                       </span>
                       {isUnread && (
-                        <span aria-hidden="true" className="flex items-center justify-center rounded-full text-xs font-semibold flex-shrink-0" style={{ minWidth: 20, height: 20, backgroundColor: COLOR.primary, color: COLOR.white, padding: '0 6px' }}>
+                        <span aria-hidden="true" className="flex items-center justify-center rounded-full text-xs font-semibold shrink-0" style={{ minWidth: 20, height: 20, backgroundColor: COLOR.primary, color: COLOR.white, padding: '0 6px' }}>
                           {unread}
                         </span>
                       )}
