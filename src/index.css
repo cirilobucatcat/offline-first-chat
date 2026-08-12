@@ -13,6 +13,10 @@
     color: #0F3040;
 }
 
+body {
+    font-family: 'Outfit', Arial, Helvetica, sans-serif;
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {

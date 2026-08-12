@@ -8,10 +8,11 @@ import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '../../lib/firebase'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useNavigate } from 'react-router'
+import { ensureUserProfile } from '@/lib/users'
 
 export default function SignUpForm() {
 
-  const [displayName, setDisplayName] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState('')
@@ -35,13 +36,8 @@ export default function SignUpForm() {
 
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(user, { displayName });
-
-      await setDoc(doc(db, 'users', user.uid), {
-        displayName,
-        email,
-        createdAt: serverTimestamp(),
-      });
+      await updateProfile(user, { displayName: name });
+      await ensureUserProfile(user.uid, name, email);
 
       navigate('/chat');
     } catch (err: any) {
@@ -67,8 +63,8 @@ export default function SignUpForm() {
       id="name"
       label="Full name"
       icon={User}
-      value={displayName}
-      onChange={(e) => setDisplayName(e.target.value)}
+      value={name}
+      onChange={(e) => setName(e.target.value)}
       placeholder="Ana Dela Cruz"
       autoComplete="name"
     />
