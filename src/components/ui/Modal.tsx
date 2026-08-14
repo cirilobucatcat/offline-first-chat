@@ -48,7 +48,7 @@ export function Modal({ titleId, title, onClose, children, footer, maxWidth = 42
         className="w-full flex flex-col rounded-2xl overflow-hidden"
         style={{ maxWidth, maxHeight: '80vh', backgroundColor: COLOR.white, fontFamily: "'Outfit', sans-serif" }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0" style={{ borderColor: COLOR.hairline }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: COLOR.hairline }}>
           <h2 id={titleId} className="text-lg font-semibold" style={{ color: COLOR.ink }}>
             {title}
           </h2>

@@ -32,7 +32,7 @@ export function ProfileBar() {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 border-t flex-shrink-0"
+      className="flex items-center gap-3 px-4 py-3 border-t shrink-0"
       style={{ borderColor: COLOR.hairline, backgroundColor: COLOR.white }}
     >
       <Avatar initials={initials} uid={user.uid} size={38} />
