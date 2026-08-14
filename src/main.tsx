@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/routes/ProtectedRoutes';
 import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
 import Auth from './pages/Auth';
+import { SettingsPage } from './pages/Settings';
 
 const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     )
   },
+  { path: '/settings', element: <ProtectedRoute><SettingsPage /></ProtectedRoute> },
   {
     path: '/',
     element: <Navigate to="/chat" />

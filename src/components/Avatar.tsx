@@ -1,7 +1,7 @@
 import { colorIndexForId } from '@/lib/chat';
+import { AVATAR_TINTS } from '@/lib/constants';
 import { Users } from 'lucide-react';
 
-const AVATAR_TINTS = ['#0D47A1', '#123E6B', '#0F3040', '#15508F'];
 const WHITE = '#FFFFFF';
 
 interface AvatarProps {
@@ -15,7 +15,7 @@ export function Avatar({ initials, uid, size = 44, isGroup = false }: AvatarProp
   return (
     <div
       aria-hidden="true"
-      className="flex items-center justify-center rounded-full font-semibold flex-shrink-0"
+      className="flex items-center justify-center rounded-full font-semibold shrink-0"
       style={{
         width: size,
         height: size,

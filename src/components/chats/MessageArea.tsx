@@ -8,22 +8,14 @@ import {
   groupMessagesByDay,
   getConversationTitle,
   getOtherParticipant,
-} from '@/lib/chat';
-import type { ParticipantSeed } from '../../lib/chat';
+  type ParticipantSeed,
+} from '../../lib/chat';
 import type { Conversation } from '@/types/chats';
+import { Avatar } from '../Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
-import { useClickOutside } from '@/hooks/useClickOutside';
-import { Avatar } from '../Avatar';
-
-const COLOR = {
-  primary: '#0D47A1',
-  paleBlue: '#E3F2FD',
-  ink: '#0F3040',
-  white: '#FFFFFF',
-  muted: 'rgba(15, 48, 64, 0.72)',
-  hairline: 'rgba(13, 71, 161, 0.14)',
-};
+import { Popover, PopoverItem } from '../ui/Popover';
+import { COLOR } from '@/lib/constants';
 
 interface MessageAreaProps {
   conversation: Conversation | null;
@@ -37,11 +29,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const { user } = useAuth();
   const { messages } = useMessages(conversation?.id ?? null);
   const [draft, setDraft] = useState('');
-  const [showMenu, setShowMenu] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, () => setShowMenu(false), showMenu);
-
   const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
   const title = conversation && user ? getConversationTitle(conversation, user.uid) : '';
 
@@ -95,57 +83,25 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
           </div>
         </div>
 
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setShowMenu((v) => !v)}
-            aria-label="Conversation options"
-            aria-haspopup="true"
-            aria-expanded={showMenu}
-            className="wc-icon-btn wc-focus rounded-full p-2 shrink-0"
-          >
-            <MoreVertical size={20} aria-hidden="true" />
-          </button>
-          {showMenu && (
-            <div
-              role="menu"
-              className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-10"
-              style={{ backgroundColor: COLOR.white, border: `1px solid ${COLOR.hairline}`, boxShadow: '0 8px 24px rgba(15,48,64,0.12)', minWidth: 200 }}
+        <Popover icon={<MoreVertical size={20} aria-hidden="true" />} label="Conversation options">
+          {conversation.isGroup ? (
+            <PopoverItem
+              icon={<UserPlus size={17} aria-hidden="true" style={{ color: COLOR.muted }} />}
+              onClick={() => onAddPeople(conversation)}
             >
-              {conversation.isGroup ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setShowMenu(false);
-                    onAddPeople(conversation);
-                  }}
-                  className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
-                  style={{ color: COLOR.ink }}
-                >
-                  <UserPlus size={17} aria-hidden="true" style={{ color: COLOR.muted }} />
-                  Add people
-                </button>
-              ) : (
-                other && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setShowMenu(false);
-                      onCreateGroupWithUser(other);
-                    }}
-                    className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
-                    style={{ color: COLOR.ink }}
-                  >
-                    <Users size={17} aria-hidden="true" style={{ color: COLOR.muted }} />
-                    Create group with {other.name.split(' ')[0]}
-                  </button>
-                )
-              )}
-            </div>
+              Add people
+            </PopoverItem>
+          ) : (
+            other && (
+              <PopoverItem
+                icon={<Users size={17} aria-hidden="true" style={{ color: COLOR.muted }} />}
+                onClick={() => onCreateGroupWithUser(other)}
+              >
+                Create group with {other.name.split(' ')[0]}
+              </PopoverItem>
+            )
           )}
-        </div>
+        </Popover>
       </header>
 
       <div className="flex-1 overflow-y-auto wc-scroll px-4 md:px-10 py-5">

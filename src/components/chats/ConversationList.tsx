@@ -6,6 +6,8 @@ import { searchUsers, type UserProfile } from '../../lib/users';
 import type { Conversation } from '@/types/chats';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Avatar } from '../Avatar';
+import { ProfileBar } from './ProfileBar';
+import { Popover, PopoverItem } from '../ui/Popover';
 
 const COLOR = {
   primary: '#0D47A1',
@@ -38,11 +40,7 @@ export function ConversationList({
   const [query, setQuery] = useState('');
   const [userResults, setUserResults] = useState<UserProfile[]>([]);
   const [searching, setSearching] = useState(false);
-  const [showNewMenu, setShowNewMenu] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const newMenuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(newMenuRef, () => setShowNewMenu(false), showNewMenu);
-
   const trimmedQuery = query.trim().toLowerCase();
 
   const filteredConversations = conversations.filter((c) => {
@@ -91,52 +89,20 @@ export function ConversationList({
       <div className="px-5 pt-6 pb-4 border-b relative" style={{ borderColor: COLOR.hairline }}>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold" style={{ color: COLOR.ink }}>Chats</h1>
-          <div className="relative" ref={newMenuRef}>
-            <button
-              type="button"
-              onClick={() => setShowNewMenu((v) => !v)}
-              aria-label="Start new conversation"
-              aria-haspopup="true"
-              aria-expanded={showNewMenu}
-              className="wc-icon-btn wc-focus rounded-full p-2 transition-colors"
+          <Popover icon={<Plus size={20} aria-hidden="true" />} label="Start new conversation">
+            <PopoverItem
+              icon={<UserPlus size={17} aria-hidden="true" style={{ color: COLOR.muted }} />}
+              onClick={() => searchInputRef.current?.focus()}
             >
-              <Plus size={20} aria-hidden="true" />
-            </button>
-            {showNewMenu && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-10"
-                style={{ backgroundColor: COLOR.white, border: `1px solid ${COLOR.hairline}`, boxShadow: '0 8px 24px rgba(15,48,64,0.12)', minWidth: 180 }}
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setShowNewMenu(false);
-                    searchInputRef.current?.focus();
-                  }}
-                  className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
-                  style={{ color: COLOR.ink }}
-                >
-                  <UserPlus size={17} aria-hidden="true" style={{ color: COLOR.muted }} />
-                  New chat
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setShowNewMenu(false);
-                    onOpenNewGroup();
-                  }}
-                  className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
-                  style={{ color: COLOR.ink }}
-                >
-                  <Users size={17} aria-hidden="true" style={{ color: COLOR.muted }} />
-                  New group
-                </button>
-              </div>
-            )}
-          </div>
+              New chat
+            </PopoverItem>
+            <PopoverItem
+              icon={<Users size={17} aria-hidden="true" style={{ color: COLOR.muted }} />}
+              onClick={onOpenNewGroup}
+            >
+              New group
+            </PopoverItem>
+          </Popover>
         </div>
         <p className="flex items-center gap-1.5 mt-1.5 text-xs" style={{ color: COLOR.muted }}>
           <Lock size={12} aria-hidden="true" /> End-to-end encrypted
@@ -257,6 +223,7 @@ export function ConversationList({
           <p className="px-5 py-6 text-sm text-center" style={{ color: COLOR.muted }}>No results found</p>
         )}
       </nav>
+      <ProfileBar />
     </aside>
   );
 }

@@ -3,7 +3,6 @@ export const PALE_BLUE = "#E3F2FD";
 export const INK = "#0F3040";
 
 export const AVATAR_TINTS: string[] = ['#0D47A1', '#123E6B', '#0F3040', '#15508F'];
-
 export const COLOR = Object.freeze({
   primary: '#0D47A1',
   paleBlue: '#E3F2FD',
