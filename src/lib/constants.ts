@@ -11,4 +11,6 @@ export const COLOR = Object.freeze({
   white: '#FFFFFF',
   muted: 'rgba(15, 48, 64, 0.72)',
   hairline: 'rgba(13, 71, 161, 0.14)',
+  error: '#B3261E',
+
 });

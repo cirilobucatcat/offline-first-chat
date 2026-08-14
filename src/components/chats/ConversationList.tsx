@@ -1,35 +1,53 @@
-import { COLOR } from '@/lib/constants';
-import { Check, CheckCheck, Lock, Plus, Search } from 'lucide-react';
-import { Avatar } from '../Avatar';
-import type { Conversation } from '@/types/chats';
-import { useAuth } from '@/context/AuthContext';
-import { formatRelativeTime, isReadByOther } from '@/lib/chat';
-import { searchUsers, type UserProfile } from '@/lib/users';
 import { useEffect, useRef, useState } from 'react';
+import { Search, Plus, Lock, Check, CheckCheck, UserPlus, Users } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { formatRelativeTime, isLastMessageReadByAll, getConversationTitle, getOtherParticipant } from '../../lib/chat';
+import { searchUsers, type UserProfile } from '../../lib/users';
+import type { Conversation } from '@/types/chats';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { Avatar } from '../Avatar';
 
-type ConversationListProps = {
-  conversations: Conversation[]
-  activeConversationId: string | null,
-  mobileHidden?: boolean,
-  onStartConversation: (profile: UserProfile) => Promise<void>;
-  onSelect: (id: string) => void
+const COLOR = {
+  primary: '#0D47A1',
+  paleBlue: '#E3F2FD',
+  ink: '#0F3040',
+  white: '#FFFFFF',
+  muted: 'rgba(15, 48, 64, 0.72)',
+  hairline: 'rgba(13, 71, 161, 0.14)',
+};
+
+interface ConversationListProps {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  onSelect: (id: string) => void;
+  onStartConversation: (profile: UserProfile) => void;
+  onOpenNewGroup: () => void;
+  mobileHidden?: boolean;
 }
 
-export default function ConversationList({ mobileHidden = false, onStartConversation, conversations, activeConversationId, onSelect }: ConversationListProps) {
+export function ConversationList({
+  conversations,
+  activeConversationId,
+  onSelect,
+  onStartConversation,
+  onOpenNewGroup,
+  mobileHidden = false,
+}: ConversationListProps) {
   const { user } = useAuth();
 
   const [query, setQuery] = useState('');
   const [userResults, setUserResults] = useState<UserProfile[]>([]);
   const [searching, setSearching] = useState(false);
+  const [showNewMenu, setShowNewMenu] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const newMenuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(newMenuRef, () => setShowNewMenu(false), showNewMenu);
 
   const trimmedQuery = query.trim().toLowerCase();
 
   const filteredConversations = conversations.filter((c) => {
     if (!user || !trimmedQuery) return true;
-    const otherUid = c.participants.find((p) => p !== user.uid);
-    const name = otherUid ? c.participantInfo[otherUid]?.name ?? '' : '';
-    return name.toLowerCase().includes(trimmedQuery);
+    return getConversationTitle(c, user.uid).toLowerCase().includes(trimmedQuery);
   });
 
   useEffect(() => {
@@ -43,7 +61,10 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
       try {
         const results = await searchUsers(trimmedQuery, user.uid);
         const existingUids = new Set(
-          conversations.map((c) => c.participants.find((p) => p !== user.uid)).filter(Boolean) as string[],
+          conversations
+            .filter((c) => !c.isGroup)
+            .map((c) => c.participants.find((p) => p !== user.uid))
+            .filter(Boolean) as string[],
         );
         setUserResults(results.filter((u) => !existingUids.has(u.uid)));
       } catch (err) {
@@ -60,23 +81,62 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
     onStartConversation(u);
     setQuery('');
   }
+
   return (
     <aside
       className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-col w-full shrink-0 border-r`}
-      style={{ maxWidth: '400px', borderColor: COLOR.hairline, backgroundColor: COLOR.white }}
+      style={{ maxWidth: 400, borderColor: COLOR.hairline, backgroundColor: COLOR.white }}
       aria-label="Chat list"
     >
-      <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: COLOR.hairline }}>
+      <div className="px-5 pt-6 pb-4 border-b relative" style={{ borderColor: COLOR.hairline }}>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold" style={{ color: COLOR.ink }}>Chats</h1>
-          <button
-            type="button"
-            onClick={() => searchInputRef.current?.focus()}
-            aria-label="Start new conversation"
-            className="wc-icon-btn wc-focus rounded-full p-2 transition-colors"
-          >
-            <Plus size={20} aria-hidden="true" />
-          </button>
+          <div className="relative" ref={newMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowNewMenu((v) => !v)}
+              aria-label="Start new conversation"
+              aria-haspopup="true"
+              aria-expanded={showNewMenu}
+              className="wc-icon-btn wc-focus rounded-full p-2 transition-colors"
+            >
+              <Plus size={20} aria-hidden="true" />
+            </button>
+            {showNewMenu && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-10"
+                style={{ backgroundColor: COLOR.white, border: `1px solid ${COLOR.hairline}`, boxShadow: '0 8px 24px rgba(15,48,64,0.12)', minWidth: 180 }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowNewMenu(false);
+                    searchInputRef.current?.focus();
+                  }}
+                  className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
+                  style={{ color: COLOR.ink }}
+                >
+                  <UserPlus size={17} aria-hidden="true" style={{ color: COLOR.muted }} />
+                  New chat
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowNewMenu(false);
+                    onOpenNewGroup();
+                  }}
+                  className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
+                  style={{ color: COLOR.ink }}
+                >
+                  <Users size={17} aria-hidden="true" style={{ color: COLOR.muted }} />
+                  New group
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <p className="flex items-center gap-1.5 mt-1.5 text-xs" style={{ color: COLOR.muted }}>
           <Lock size={12} aria-hidden="true" /> End-to-end encrypted
@@ -108,31 +168,34 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
         <ul>
           {filteredConversations.map((c) => {
             if (!user) return null;
-            const otherUid = c.participants.find((p) => p !== user.uid);
-            const other = otherUid ? c.participantInfo[otherUid] : undefined;
+            const title = getConversationTitle(c, user.uid);
+            const other = getOtherParticipant(c, user.uid);
             const unread = c.unreadCount?.[user.uid] ?? 0;
             const isUnread = unread > 0;
             const isActive = c.id === activeConversationId;
             const fromMe = c.lastMessageSenderId === user.uid;
-            const readByOther = fromMe && otherUid ? isReadByOther(c, otherUid) : false;
+            const readByAll = fromMe && isLastMessageReadByAll(c);
+            const senderPrefix = c.isGroup && c.lastMessageSenderId && !fromMe
+              ? `${c.participantInfo[c.lastMessageSenderId]?.name?.split(' ')[0] ?? ''}: `
+              : '';
 
             return (
-              <li key={c.id} className='group'>
+              <li key={c.id}>
                 <button
                   type="button"
                   onClick={() => onSelect(c.id)}
                   aria-current={isActive ? 'true' : undefined}
-                  className="wc-item wc-focus w-full flex items-center gap-3 px-4 py-3 group-hover:cursor-pointer group-hover:bg-pale-blue/40! text-left transition-colors"
+                  className="wc-item wc-focus w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
                   style={{
                     backgroundColor: isActive ? COLOR.paleBlue : 'transparent',
                     borderLeft: `3px solid ${isActive ? COLOR.primary : 'transparent'}`,
                   }}
                 >
-                  <Avatar initials={other?.initials ?? '?'} uid={otherUid ?? c.id} />
+                  <Avatar initials={other?.initials ?? '#'} uid={other?.uid ?? c.id} isGroup={c.isGroup} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="truncate" style={{ color: COLOR.ink, fontWeight: isUnread ? 700 : 500 }}>
-                        {other?.name ?? 'Unknown'}
+                        {title}
                       </span>
                       <span className="text-xs shrink-0" style={{ color: isUnread ? COLOR.primary : COLOR.muted, fontWeight: isUnread ? 700 : 400 }}>
                         {formatRelativeTime(c.lastMessageAt)}
@@ -141,12 +204,12 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
                     <div className="flex items-center justify-between gap-2 mt-0.5">
                       <span className="truncate text-sm flex items-center gap-1 min-w-0" style={{ color: isUnread ? COLOR.ink : COLOR.muted, fontWeight: isUnread ? 600 : 400 }}>
                         {fromMe &&
-                          (readByOther ? (
+                          (readByAll ? (
                             <CheckCheck size={14} aria-hidden="true" style={{ color: COLOR.primary, flexShrink: 0 }} />
                           ) : (
                             <Check size={14} aria-hidden="true" style={{ color: COLOR.muted, flexShrink: 0 }} />
                           ))}
-                        <span className="truncate">{c.lastMessage || 'Say hello 👋'}</span>
+                        <span className="truncate">{senderPrefix}{c.lastMessage || 'Say hello 👋'}</span>
                       </span>
                       {isUnread && (
                         <span aria-hidden="true" className="flex items-center justify-center rounded-full text-xs font-semibold shrink-0" style={{ minWidth: 20, height: 20, backgroundColor: COLOR.primary, color: COLOR.white, padding: '0 6px' }}>
@@ -194,5 +257,6 @@ export default function ConversationList({ mobileHidden = false, onStartConversa
           <p className="px-5 py-6 text-sm text-center" style={{ color: COLOR.muted }}>No results found</p>
         )}
       </nav>
-    </aside>)
+    </aside>
+  );
 }

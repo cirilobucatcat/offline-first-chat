@@ -6,9 +6,66 @@ import {
   serverTimestamp,
   increment,
   Timestamp,
+  arrayUnion,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Conversation, Message } from '@/types/chats';
+
+export interface ParticipantSeed {
+  uid: string;
+  name: string;
+  initials: string;
+}
+
+export async function createGroupConversation(
+  creator: ParticipantSeed,
+  members: ParticipantSeed[], // other members, NOT including creator
+  groupName: string,
+): Promise<string> {
+  const allMembers = [creator, ...members];
+  const ref = doc(collection(db, 'conversations')); // auto-generated id — groups can't use the deterministic 1:1 id scheme
+
+  const participantInfo: Record<string, { name: string; initials: string }> = {};
+  const unreadCount: Record<string, number> = {};
+  allMembers.forEach((m) => {
+    participantInfo[m.uid] = { name: m.name, initials: m.initials };
+    unreadCount[m.uid] = 0;
+  });
+
+  await setDoc(ref, {
+    participants: allMembers.map((m) => m.uid),
+    participantInfo,
+    isGroup: true,
+    groupName: groupName.trim(),
+    createdBy: creator.uid,
+    lastMessage: '',
+    lastMessageSenderId: '',
+    lastMessageAt: serverTimestamp(),
+    unreadCount,
+    lastRead: {},
+  });
+
+  return ref.id;
+}
+
+export async function addParticipantsToConversation(
+  conversationId: string,
+  newMembers: ParticipantSeed[],
+): Promise<void> {
+  if (newMembers.length === 0) return;
+
+  const updates: Record<string, unknown> = {
+    participants: arrayUnion(...newMembers.map((m) => m.uid)),
+  };
+  newMembers.forEach((m) => {
+    updates[`participantInfo.${m.uid}`] = { name: m.name, initials: m.initials };
+    updates[`unreadCount.${m.uid}`] = 0;
+  });
+
+  await updateDoc(doc(db, 'conversations', conversationId), updates);
+}
+
 
 export async function sendMessage(
   conversationId: string,
@@ -50,22 +107,43 @@ export async function markConversationRead(conversationId: string, uid: string) 
   });
 }
 
-export function isReadByOther(conversation: Conversation, otherUid: string): boolean {
-  const lastRead = conversation.lastRead?.[otherUid];
-  if (!lastRead || !conversation.lastMessageAt) return false;
-  return lastRead.toMillis() >= conversation.lastMessageAt.toMillis();
+export function isLastMessageReadByAll(conversation: Conversation): boolean {
+  if (!conversation.lastMessageAt || !conversation.lastMessageSenderId) return false;
+  const others = conversation.participants.filter((p) => p !== conversation.lastMessageSenderId);
+  if (others.length === 0) return false;
+  return others.every((uid) => {
+    const lastRead = conversation.lastRead?.[uid];
+    return lastRead && lastRead.toMillis() >= conversation.lastMessageAt!.toMillis();
+  });
 }
 
-export function isMessageReadBy(message: Message, readerLastRead?: Timestamp | null): boolean {
-  if (!readerLastRead || !message.createdAt) return false;
-  return readerLastRead.toMillis() >= message.createdAt.toMillis();
+export function isMessageReadByAll(conversation: Conversation, senderUid: string, message: Message): boolean {
+  if (!message.createdAt) return false;
+  const others = conversation.participants.filter((p) => p !== senderUid);
+  if (others.length === 0) return false;
+  return others.every((uid) => {
+    const lastRead = conversation.lastRead?.[uid];
+    return lastRead && lastRead.toMillis() >= message.createdAt!.toMillis();
+  });
 }
 
-// Stable per-uid avatar tint so colors don't shift as the list reorders.
 export function colorIndexForId(id: string, modulo: number): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return hash % modulo;
+}
+
+export function getOtherParticipant(conversation: Conversation, currentUid: string): ParticipantSeed | null {
+  if (conversation.isGroup) return null;
+  const otherUid = conversation.participants.find((p) => p !== currentUid);
+  if (!otherUid) return null;
+  const info = conversation.participantInfo[otherUid];
+  return info ? { uid: otherUid, name: info.name, initials: info.initials } : null;
+}
+
+export function getConversationTitle(conversation: Conversation, currentUid: string): string {
+  if (conversation.isGroup) return conversation.groupName?.trim() || 'Group chat';
+  return getOtherParticipant(conversation, currentUid)?.name ?? 'Unknown';
 }
 
 export function formatMessageTime(timestamp: Timestamp): string {

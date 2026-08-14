@@ -14,6 +14,9 @@ export interface Conversation {
   lastMessageAt: Timestamp | null;
   unreadCount: Record<string, number>;
   lastRead: Record<string, Timestamp>;
+  isGroup: boolean;
+  groupName?: string;
+  createdBy?: string;
 }
 
 export interface Message {
