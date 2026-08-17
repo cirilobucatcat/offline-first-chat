@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
-import { searchUsers, type UserProfile } from '../../lib/users';
-import type { ParticipantSeed } from '../../lib/chat';
+import { searchUsers, type UserProfile } from '@/lib/users';
+import type { ParticipantSeed } from '@/lib/chat';
 import { Avatar } from '../Avatar';
 import { Modal } from '../ui/Modal';
 

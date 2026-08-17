@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import type { Conversation } from '@/types/chats';
+import { db } from '@/lib/firebase';
 // TASK: Fix the infinite loop bug on line 24
 export function useConversations(uid: string | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);

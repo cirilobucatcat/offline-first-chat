@@ -9,7 +9,7 @@ import {
   getConversationTitle,
   getOtherParticipant,
   type ParticipantSeed,
-} from '../../lib/chat';
+} from '@/lib/chat';
 import type { Conversation } from '@/types/chats';
 import { Avatar } from '../Avatar';
 import { useAuth } from '@/context/AuthContext';

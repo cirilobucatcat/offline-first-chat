@@ -6,6 +6,8 @@
     --color-primary: #0D47A1;
     --color-pale-blue: #E3F2FD;
     --color-ink: #0F3040;
+    --color-muted: rgba(15, 48, 64, 0.72);
+    --color-error: #B3261E;
 }
 
 ::selection {
