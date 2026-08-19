@@ -8,6 +8,7 @@ import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
 import Auth from './pages/Auth';
 import { SettingsPage } from './pages/Settings';
+import E2EEWrapper from './components/E2EEWrapper';
 
 const router = createBrowserRouter([
   {
@@ -17,12 +18,18 @@ const router = createBrowserRouter([
   {
     path: '/chat',
     element: (
-      <ProtectedRoute>
+      <E2EEWrapper>
         <Chat />
+      </E2EEWrapper>
+    )
+  },
+  {
+    path: '/settings', element: (
+      <ProtectedRoute>
+        <SettingsPage />
       </ProtectedRoute>
     )
   },
-  { path: '/settings', element: <ProtectedRoute><SettingsPage /></ProtectedRoute> },
   {
     path: '/',
     element: <Navigate to="/chat" />
@@ -32,8 +39,6 @@ const router = createBrowserRouter([
     element: <NotFound />
   }
 ])
-
-
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

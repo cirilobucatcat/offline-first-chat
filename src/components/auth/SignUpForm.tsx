@@ -1,14 +1,14 @@
 import { useState, type SubmitEventHandler } from 'react'
 import { Field } from '../Field'
 import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, User } from 'lucide-react'
-import { PALE_BLUE, PRIMARY } from '../../lib/constants'
-import { StrengthMeter } from '../StrengthMeter'
 import { Checkbox } from '../Checkbox'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
-import { auth, db } from '../../lib/firebase'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { useNavigate } from 'react-router'
 import { ensureUserProfile } from '@/lib/users'
+import { getOrCreateIdentityKeyPair } from '@/lib/crypto/keyManager'
+import { auth } from '@/lib/firebase'
+import { COLOR } from '@/lib/constants'
+import { StrengthMeter } from '../StrengthMeter'
 
 export default function SignUpForm() {
 
@@ -38,6 +38,7 @@ export default function SignUpForm() {
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(user, { displayName: name });
       await ensureUserProfile(user.uid, name, email);
+      getOrCreateIdentityKeyPair(user.uid)
 
       navigate('/chat');
     } catch (err: any) {
@@ -87,7 +88,7 @@ export default function SignUpForm() {
           <button
             type="button"
             className="text-sm font-medium hover:underline"
-            style={{ color: PRIMARY }}
+            style={{ color: COLOR.primary }}
           >
             Forgot password?
           </button>
@@ -136,11 +137,11 @@ export default function SignUpForm() {
 
     <Checkbox id="agree" checked={agree} onChange={(e) => setAgree(e.target.checked)}>
       I agree to the{" "}
-      <a href="#" onClick={(e) => e.preventDefault()} className="font-medium underline" style={{ color: PRIMARY }}>
+      <a href="#" onClick={(e) => e.preventDefault()} className="font-medium underline" style={{ color: COLOR.primary }}>
         Terms of Service
       </a>{" "}
       and{" "}
-      <a href="#" onClick={(e) => e.preventDefault()} className="font-medium underline" style={{ color: PRIMARY }}>
+      <a href="#" onClick={(e) => e.preventDefault()} className="font-medium underline" style={{ color: COLOR.primary }}>
         Privacy Policy
       </a>
     </Checkbox>
@@ -151,8 +152,8 @@ export default function SignUpForm() {
       aria-busy={isLoading}
       className="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 mt-7"
       style={{
-        backgroundColor: PRIMARY,
-        color: PALE_BLUE,
+        backgroundColor: COLOR.primary,
+        color: COLOR.paleBlue,
         opacity: isLoading || !agree ? 0.75 : 1,
         cursor: isLoading || !agree ? "not-allowed" : "pointer",
       }}
