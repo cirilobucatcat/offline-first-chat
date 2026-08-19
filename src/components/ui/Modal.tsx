@@ -9,7 +9,7 @@ const COLOR = {
 
 interface ModalProps {
   titleId: string;
-  title: string;
+  title: string | ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;

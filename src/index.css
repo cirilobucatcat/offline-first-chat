@@ -4,10 +4,16 @@
 
 @theme {
     --color-primary: #0D47A1;
+    --color-primary-light: #E3F2FD;
     --color-pale-blue: #E3F2FD;
     --color-ink: #0F3040;
+    --color-ink-muted: #4B6577;
     --color-muted: rgba(15, 48, 64, 0.72);
     --color-error: #B3261E;
+    --color-danger: #B91C1C;
+    --color-danger-bg: #FEF2F2;
+    --color-danger-border: #FECACA;
+    --color-border: #DCE7F5;
 }
 
 ::selection {

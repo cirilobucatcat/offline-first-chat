@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router';
-import { ChevronLeft, ChevronRight, Camera, Lock, User, Mail } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, Lock, User, Mail, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getInitials } from '../lib/users';
 import { Avatar } from '@/components/Avatar';
 import { COLOR } from '@/lib/constants';
 import { Field } from '@/components/Field';
 import { useState } from 'react';
+import { DangerZoneSection } from '@/components/settings/DangerZoneSection';
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -136,23 +137,7 @@ export function SettingsPage() {
             </button>
           </div>
         </section>
-
-        <section
-          className="rounded-2xl border border-red-300 p-5 md:p-6"
-          style={{ backgroundColor: COLOR.white }}
-          aria-labelledby="account-settings-heading"
-        >
-          <div className='mb-4'>
-            <h2
-              id="account-settings-heading"
-              className="text-sm font-semibold uppercase text-error"
-              style={{ letterSpacing: '0.04em' }}
-            >
-              Danger Zone
-            </h2>
-            <p className='text-muted text-sm'>These actions are permanent. Make sure before you continue.</p>
-          </div>
-        </section>
+        <DangerZoneSection />
       </main>
     </div>
   );
