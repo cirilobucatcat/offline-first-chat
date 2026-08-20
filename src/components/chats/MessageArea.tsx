@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Lock, MoreVertical, ChevronLeft, Paperclip, Smile, Send, Check, CheckCheck, UserPlus, Users } from 'lucide-react';
+import { Lock, MoreVertical, ChevronLeft, Paperclip, Smile, Send, Check, CheckCheck, Clock, UserPlus, Users } from 'lucide-react';
 import {
   sendMessage,
   markConversationRead,
@@ -14,6 +14,7 @@ import type { Conversation } from '@/types/chats';
 import { Avatar } from '../Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Popover, PopoverItem } from '../ui/Popover';
 import { COLOR } from '@/lib/constants';
 import { useMyIdentityKey } from '@/context/IdentityContext';
@@ -31,6 +32,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const { privateKey } = useMyIdentityKey();
   const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
   const { messages } = useMessages(conversation?.id ?? null, other?.uid ?? null);
+  const networkStatus = useNetworkStatus();
   const [draft, setDraft] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const title = conversation && user ? getConversationTitle(conversation, user.uid) : '';
@@ -121,6 +123,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
               const mine = m.senderId === user?.uid;
               const read = mine && isMessageReadByAll(conversation, m.senderId, m);
               const senderName = conversation.isGroup && !mine ? conversation.participantInfo[m.senderId]?.name : undefined;
+              const queued = mine && !m.createdAt && networkStatus === 'offline';
               return (
                 <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} mb-2`}>
                   <div style={{ maxWidth: '72%' }}>
@@ -148,6 +151,14 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
                         {mine && <span className="sr-only">{read ? 'Read' : 'Delivered'}</span>}
                       </div>
                     </div>
+                    {queued && (
+                      <div className="flex items-center justify-end gap-1 mt-1 mr-1">
+                        <Clock size={11} aria-hidden="true" style={{ color: COLOR.muted }} />
+                        <span className="text-xs" style={{ color: COLOR.muted }}>
+                          No connection — will send once you're back online
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { formatRelativeTime, isLastMessageReadByAll, getConversationTitle, getOtherParticipant } from '../../lib/chat';
 import { searchUsers, type UserProfile } from '../../lib/users';
 import type { Conversation } from '@/types/chats';
-import { useClickOutside } from '@/hooks/useClickOutside';
 import { Avatar } from '../Avatar';
 import { ProfileBar } from './ProfileBar';
 import { Popover, PopoverItem } from '../ui/Popover';

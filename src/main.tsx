@@ -8,6 +8,8 @@ import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
 import Auth from './pages/Auth';
 import { SettingsPage } from './pages/Settings';
+import { NetworkStatusBanner } from './components/NetworkStatusBanner';
+import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 
 const router = createBrowserRouter([
   {
@@ -42,6 +44,8 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
+      <NetworkStatusBanner />
+      <PwaUpdatePrompt />
       <RouterProvider router={router} />
     </AuthProvider>
   </StrictMode>,

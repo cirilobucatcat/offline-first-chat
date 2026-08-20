@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router';
-import { ChevronLeft, ChevronRight, Camera, Lock, User, Mail, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Camera, User, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getInitials } from '../lib/users';
 import { Avatar } from '@/components/Avatar';
@@ -13,7 +13,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
 
   const [name, setName] = useState(user?.displayName ?? 'Your name');
-  const [email, setEmail] = useState(user?.email ?? 'you@example.com');
+  const [email] = useState(user?.email ?? 'you@example.com');
   const initials = getInitials(name);
 
   return (

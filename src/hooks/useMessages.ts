@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { collection, query, orderBy, onSnapshot, type DocumentData, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { decryptMessageForDisplay } from '@/lib/crypto/conversationKeys';
 import { parseMessage, type DisplayableMessage } from '@/lib/firebase/parseMessage';

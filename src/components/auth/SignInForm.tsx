@@ -6,7 +6,6 @@ import { useNavigate } from "react-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { COLOR } from "@/lib/constants";
-import { getOrCreateIdentityKeyPair } from "@/lib/crypto/keyManager";
 
 export default function SignInForm() {
 
