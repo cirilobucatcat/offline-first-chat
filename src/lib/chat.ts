@@ -10,7 +10,9 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Conversation, Message } from '@/types/chats';
+import type { Conversation } from '@/types/chats';
+import { encryptMessageText } from './crypto/messageCrypto';
+import { getConversationKey, getDirectConversationPeerUid } from './crypto/conversationKeys';
 
 export interface ParticipantSeed {
   uid: string;
@@ -67,11 +69,17 @@ export async function addParticipantsToConversation(
 }
 
 
+export interface SendMessageOptions {
+  isGroup: boolean;
+  myPrivateKey: CryptoKey;
+}
+
 export async function sendMessage(
   conversationId: string,
   senderId: string,
   participantIds: string[],
   text: string,
+  options: SendMessageOptions,
 ) {
   const trimmed = text.trim();
   if (!trimmed) return;
@@ -79,14 +87,7 @@ export async function sendMessage(
   const batch = writeBatch(db);
   const messageRef = doc(collection(db, 'conversations', conversationId, 'messages'));
 
-  batch.set(messageRef, {
-    senderId,
-    text: trimmed,
-    createdAt: serverTimestamp(),
-  });
-
   const updates: Record<string, unknown> = {
-    lastMessage: trimmed,
     lastMessageSenderId: senderId,
     lastMessageAt: serverTimestamp(),
   };
@@ -95,6 +96,47 @@ export async function sendMessage(
     .forEach((uid) => {
       updates[`unreadCount.${uid}`] = increment(1);
     });
+
+  if (options.isGroup) {
+    // Groups aren't encrypted yet — no single shared secret across more
+    // than two parties without per-device fan-out (planned as a separate
+    // v2). Sends exactly as before, just with `encrypted: false` made
+    // explicit instead of implicit.
+    batch.set(messageRef, {
+      senderId,
+      text: trimmed,
+      encrypted: false,
+      createdAt: serverTimestamp(),
+    });
+    updates.lastMessage = trimmed;
+  } else {
+    const peerUid = getDirectConversationPeerUid(participantIds, senderId);
+    const key = peerUid
+      ? await getConversationKey(conversationId, options.myPrivateKey, peerUid)
+      : null;
+
+    if (!key) {
+      // Fail closed, same rule as the rest of the E2EE work: an unclear
+      // state (peer hasn't set up encryption on any device yet) is never a
+      // license to fall back to plaintext.
+      throw new Error('Cannot send: recipient has not set up encryption yet.');
+    }
+
+    const associatedData = `${conversationId}:${senderId}`;
+    const { ciphertext, iv, algo } = await encryptMessageText(key, trimmed, associatedData);
+
+    batch.set(messageRef, {
+      senderId,
+      ciphertext,
+      iv,
+      algo,
+      encrypted: true,
+      createdAt: serverTimestamp(),
+    });
+    // Denormalized preview field — must never hold plaintext once E2EE is
+    // live for this conversation.
+    updates.lastMessage = '🔒 New message';
+  }
 
   batch.update(doc(db, 'conversations', conversationId), updates);
   await batch.commit();
@@ -117,7 +159,11 @@ export function isLastMessageReadByAll(conversation: Conversation): boolean {
   });
 }
 
-export function isMessageReadByAll(conversation: Conversation, senderUid: string, message: Message): boolean {
+export function isMessageReadByAll<T extends { createdAt: Timestamp | null | undefined }>(
+  conversation: Conversation,
+  senderUid: string,
+  message: T,
+): boolean {
   if (!message.createdAt) return false;
   const others = conversation.participants.filter((p) => p !== senderUid);
   if (others.length === 0) return false;
@@ -164,8 +210,10 @@ export function formatRelativeTime(timestamp: Timestamp | null | undefined): str
   return date.toLocaleDateString([], sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export function groupMessagesByDay(messages: Message[]): { label: string; items: Message[] }[] {
-  const groups: { label: string; items: Message[] }[] = [];
+export function groupMessagesByDay<T extends { createdAt: Timestamp | null | undefined }>(
+  messages: T[],
+): { label: string; items: T[] }[] {
+  const groups: { label: string; items: T[] }[] = [];
   messages.forEach((m) => {
     const label = m.createdAt ? dayLabel(m.createdAt.toDate()) : (groups[groups.length - 1]?.label ?? 'Today');
     const last = groups[groups.length - 1];

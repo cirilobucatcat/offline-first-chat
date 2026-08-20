@@ -8,7 +8,6 @@ import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
 import Auth from './pages/Auth';
 import { SettingsPage } from './pages/Settings';
-import E2EEWrapper from './components/E2EEWrapper';
 
 const router = createBrowserRouter([
   {
@@ -18,9 +17,9 @@ const router = createBrowserRouter([
   {
     path: '/chat',
     element: (
-      <E2EEWrapper>
+      <ProtectedRoute>
         <Chat />
-      </E2EEWrapper>
+      </ProtectedRoute>
     )
   },
   {

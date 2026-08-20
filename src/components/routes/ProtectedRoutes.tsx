@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { IdentityKeyGate } from '../crypto/IdentityKeyGate';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -24,5 +25,5 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to='/login' replace />;
   }
 
-  return children;
+  return <IdentityKeyGate>{children}</IdentityKeyGate>;
 }

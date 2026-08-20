@@ -14,7 +14,6 @@ export default function Auth() {
 
     const isSignIn = mode === "signin";
 
-
     const handleModeSwitch = (newMode: 'signin' | 'signup') => {
         setMode(newMode);
         const url = new URL(window.location.href);

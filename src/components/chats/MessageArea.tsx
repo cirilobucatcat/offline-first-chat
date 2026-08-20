@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { Popover, PopoverItem } from '../ui/Popover';
 import { COLOR } from '@/lib/constants';
+import { useMyIdentityKey } from '@/context/IdentityContext';
 
 interface MessageAreaProps {
   conversation: Conversation | null;
@@ -27,10 +28,11 @@ interface MessageAreaProps {
 
 export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWithUser, mobileHidden = false }: MessageAreaProps) {
   const { user } = useAuth();
-  const { messages } = useMessages(conversation?.id ?? null);
+  const { privateKey } = useMyIdentityKey();
+  const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
+  const { messages } = useMessages(conversation?.id ?? null, other?.uid ?? null);
   const [draft, setDraft] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
-  const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
   const title = conversation && user ? getConversationTitle(conversation, user.uid) : '';
 
   const myUnread = conversation && user ? (conversation.unreadCount?.[user.uid] ?? 0) : 0;
@@ -50,7 +52,10 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
     const text = draft;
     setDraft('');
     try {
-      await sendMessage(conversation.id, user.uid, conversation.participants, text);
+      await sendMessage(conversation.id, user.uid, conversation.participants, text, {
+        isGroup: conversation.isGroup,
+        myPrivateKey: privateKey,
+      });
     } catch (err) {
       console.error('Failed to send message', err);
       setDraft(text);
@@ -78,7 +83,8 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
           <div className="min-w-0">
             <h2 className="font-semibold truncate leading-tight" style={{ color: COLOR.ink }}>{title}</h2>
             <p className="text-xs flex items-center gap-1" style={{ color: COLOR.muted }}>
-              <Lock size={11} aria-hidden="true" /> Encrypted · synced offline
+              {!conversation.isGroup && <Lock size={11} aria-hidden="true" />}
+              {conversation.isGroup ? 'Synced offline' : 'Encrypted · synced offline'}
             </p>
           </div>
         </div>
@@ -133,7 +139,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
                         borderBottomLeftRadius: mine ? 18 : 4,
                       }}
                     >
-                      <p className="text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>{m.text}</p>
+                      <p className="text-sm leading-relaxed" style={{ wordBreak: 'break-word' }}>{m.displayText}</p>
                       <div className="flex items-center justify-end gap-1 mt-1">
                         <span className="text-xs" style={{ color: mine ? COLOR.paleBlue : COLOR.muted }}>
                           {m.createdAt ? formatMessageTime(m.createdAt) : 'Sending…'}

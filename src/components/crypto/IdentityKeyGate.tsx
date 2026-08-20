@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { useIdentityKeys } from '@/hooks/userIdentityKeys';
+import { IdentityKeyProvider } from '@/context/IdentityContext';
+
 /**
  * Wraps authenticated routes and blocks rendering until this device has an
  * E2EE identity key ready. Mirrors ProtectedRoute's existing loading
@@ -56,5 +58,5 @@ export function IdentityKeyGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <IdentityKeyProvider keyPair={state.keyPair}>{children}</IdentityKeyProvider>;
 }

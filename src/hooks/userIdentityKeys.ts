@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 export type IdentityKeysState =
     | { phase: 'idle' }
     | { phase: 'loading' }
-    | { phase: 'ready' }
+    | { phase: 'ready'; keyPair: CryptoKeyPair }
     | { phase: 'needs-recovery' }
     | { phase: 'error'; error: unknown };
 
@@ -32,7 +32,7 @@ export function useIdentityKeys(): IdentityKeysState {
             switch (result.status) {
                 case 'created':
                 case 'existing':
-                    setState({ phase: 'ready' });
+                    setState({ phase: 'ready', keyPair: result.keyPair });
                     break;
                 case 'needs-recovery':
                     setState({ phase: 'needs-recovery' });

@@ -6,7 +6,6 @@ export const AVATAR_TINTS: string[] = ['#0D47A1', '#123E6B', '#0F3040', '#15508F
 export const COLOR = Object.freeze({
   primary: '#0D47A1',
   primaryLight: '#E3F2FD',
-
   paleBlue: '#E3F2FD',
   ink: '#0F3040',
   inkMuted: '#4B6577',
@@ -18,6 +17,5 @@ export const COLOR = Object.freeze({
   dangerBg: '#FEF2F2',
   dangerBorder: '#FECACA',
   border: '#DCE7F5',
-
 });
 
