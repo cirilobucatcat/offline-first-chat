@@ -8,6 +8,7 @@ import { Field } from '@/components/Field';
 import { useState } from 'react';
 import { DangerZoneSection } from '@/components/settings/DangerZoneSection';
 import { LinkedDevicesSection } from '@/components/settings/LinkedDevicesSection';
+import { PrivacySecuritySection } from '@/components/settings/PrivacySecuritySection';
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -174,6 +175,7 @@ export function SettingsPage() {
             </button>
           </div>
         </section>
+        <PrivacySecuritySection />
         <LinkedDevicesSection />
         <DangerZoneSection />
       </main>

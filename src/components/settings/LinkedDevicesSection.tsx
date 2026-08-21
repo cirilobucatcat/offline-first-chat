@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Monitor } from 'lucide-react';
+import { Loader2, Monitor } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { JoinDeviceModal } from '../JoinDeviceModal';
 import {
   forgetDevice,
@@ -23,73 +24,124 @@ function relativeLastSeen(ts: DeviceRecord['lastSeen']): string {
   return `Active ${days}d ago`;
 }
 
-/**
- * Drop-in for the stubbed Privacy & Security section in Settings. I don't
- * have that host file, so this is self-contained rather than wired in
- * directly — send it over and I'll place it precisely.
- */
 export function LinkedDevicesSection() {
   const { user } = useAuth();
+  const networkStatus = useNetworkStatus();
+  const isOffline = networkStatus === 'offline';
+
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
+  const [devicesLoaded, setDevicesLoaded] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [pendingForget, setPendingForget] = useState<DeviceRecord | null>(null);
-  const thisDeviceId = getOrCreateLocalDeviceId();
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [thisDeviceId] = useState(() => getOrCreateLocalDeviceId());
 
   useEffect(() => {
     if (!user?.uid) return;
-    return watchDevices(user.uid, setDevices);
+    setDevicesLoaded(false);
+    return watchDevices(user.uid, (list) => {
+      setDevices(list);
+      setDevicesLoaded(true);
+    });
   }, [user?.uid]);
+
+  const sortedDevices = [...devices].sort((a, b) => {
+    if (a.deviceId === thisDeviceId) return -1;
+    if (b.deviceId === thisDeviceId) return 1;
+    const aMs = a.lastSeen?.toMillis() ?? Infinity;
+    const bMs = b.lastSeen?.toMillis() ?? Infinity;
+    return bMs - aMs;
+  });
 
   return (
     <section className='flex flex-col gap-4'>
-      <div className='flex items-center justify-between gap-4'>
+      <div className='flex flex-wrap items-center justify-between gap-3'>
         <div>
           <h3 className='text-base font-semibold text-ink'>Linked devices</h3>
           <p className='text-sm text-ink/60'>
             Devices signed into your account.
           </p>
         </div>
-        <Button size='sm' onClick={() => setShowJoinModal(true)}>
+        <Button
+          size='sm'
+          onClick={() => setShowJoinModal(true)}
+          disabled={isOffline}
+          title={isOffline ? 'Linking a device needs a connection' : undefined}
+        >
           Link a new device
         </Button>
       </div>
 
-      <ul className='flex flex-col divide-y divide-border rounded-xl border border-border'>
-        {devices.map((device) => (
+      {isOffline && (
+        <p className='text-xs text-ink/50'>
+          You're offline — linking a new device needs a live connection to pair.
+        </p>
+      )}
+
+      <ul
+        className='flex flex-col divide-y divide-border rounded-xl border border-border'
+        aria-busy={!devicesLoaded}
+      >
+        {!devicesLoaded && (
           <li
-            key={device.deviceId}
-            className='flex items-center justify-between gap-4 px-4 py-3'
+            className='flex items-center justify-center gap-2 px-4 py-6 text-sm text-ink/50'
+            role='status'
+            aria-live='polite'
           >
-            <div className='flex items-center gap-3'>
-              <Monitor className='h-5 w-5 text-primary' aria-hidden='true' />
-              <div>
-                <p className='text-sm font-medium text-ink'>
-                  {device.label}
-                  {device.deviceId === thisDeviceId && (
-                    <span className='ml-2 text-xs font-normal text-ink/50'>
-                      This device
-                    </span>
-                  )}
-                </p>
-                <p className='text-xs text-ink/50'>
-                  {relativeLastSeen(device.lastSeen)}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant='dangerGhost'
-              size='sm'
-              onClick={() => setPendingForget(device)}
-            >
-              Forget
-            </Button>
+            <Loader2 className='h-4 w-4 animate-spin' aria-hidden='true' />
+            Loading devices…
           </li>
-        ))}
-        {devices.length === 0 && (
+        )}
+
+        {devicesLoaded && sortedDevices.length === 0 && (
           <li className='px-4 py-6 text-center text-sm text-ink/50'>
             No devices yet.
           </li>
         )}
+
+        {devicesLoaded &&
+          sortedDevices.map((device) => (
+            <li
+              key={device.deviceId}
+              className='flex items-center justify-between gap-4 px-4 py-3'
+            >
+              <div className='flex min-w-0 items-center gap-3'>
+                <Monitor
+                  className='h-5 w-5 shrink-0 text-primary'
+                  aria-hidden='true'
+                />
+                <div className='min-w-0'>
+                  <p className='truncate text-sm font-medium text-ink'>
+                    {device.label}
+                    {device.deviceId === thisDeviceId && (
+                      <span className='ml-2 text-xs font-normal text-ink/50'>
+                        This device
+                      </span>
+                    )}
+                  </p>
+                  <p className='text-xs text-ink/50'>
+                    {relativeLastSeen(device.lastSeen)}
+                  </p>
+                </div>
+              </div>
+
+              {device.deviceId === thisDeviceId ? (
+                <span className='shrink-0 text-xs text-ink/40'>In use</span>
+              ) : (
+                <Button
+                  variant='dangerGhost'
+                  size='sm'
+                  onClick={() => {
+                    setPendingForget(device);
+                    setRemoveError(null);
+                  }}
+                >
+                  Forget
+                </Button>
+              )}
+            </li>
+          ))}
       </ul>
 
       {showJoinModal && (
@@ -100,13 +152,13 @@ export function LinkedDevicesSection() {
         <Modal
           titleId='forget-device-title'
           title='Forget this device?'
-          onClose={() => setPendingForget(null)}
+          onClose={() => {
+            if (isRemoving) return;
+            setPendingForget(null);
+            setRemoveError(null);
+          }}
         >
           <div className='flex flex-col gap-4 px-5 py-5'>
-            {/* Honesty note (see forgetDevice() in lib/devices.ts): this is
-                bookkeeping, not revocation. Path A gives every linked device
-                a full copy of the identity key — this app can't yet cut one
-                off without rotating that key for everyone. Say so plainly. */}
             <p className='text-sm text-ink'>
               This removes <strong>{pendingForget.label}</strong> from this
               list. It doesn't revoke its access — every linked device holds a
@@ -114,16 +166,41 @@ export function LinkedDevicesSection() {
               one off without resetting the key for your whole account. Real
               device revocation is planned but not built yet.
             </p>
+
+            {removeError && (
+              <p className='text-sm text-danger' role='alert'>
+                {removeError}
+              </p>
+            )}
+
             <div className='flex justify-end gap-2'>
-              <Button variant='ghost' onClick={() => setPendingForget(null)}>
+              <Button
+                variant='ghost'
+                onClick={() => {
+                  setPendingForget(null);
+                  setRemoveError(null);
+                }}
+                disabled={isRemoving}
+              >
                 Cancel
               </Button>
               <Button
                 variant='dangerSolid'
+                isLoading={isRemoving}
                 onClick={async () => {
-                  if (user?.uid)
+                  if (!user?.uid) return;
+                  setIsRemoving(true);
+                  setRemoveError(null);
+                  try {
                     await forgetDevice(user.uid, pendingForget.deviceId);
-                  setPendingForget(null);
+                    setPendingForget(null);
+                  } catch {
+                    setRemoveError(
+                      "Couldn't remove that device. Check your connection and try again.",
+                    );
+                  } finally {
+                    setIsRemoving(false);
+                  }
                 }}
               >
                 Remove from list
