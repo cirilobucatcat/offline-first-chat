@@ -3,10 +3,21 @@
  *
  * CryptoKey objects are stored directly — not exported to bytes or base64
  * first. The browser's structured-clone algorithm knows how to persist
- * CryptoKey objects natively, and because the private key is generated as
- * non-extractable (see keyManager.ts), application code — including an XSS
- * payload — can never read it out as raw bytes. It can only be *used* via
- * crypto.subtle.deriveKey / deriveBits, never exported.
+ * CryptoKey objects natively.
+ *
+ * SECURITY NOTE (changed for device linking): the identity private key is
+ * now generated as extractable: true (see keyManager.ts), so it can be
+ * wrapped and handed to a new device during linking. That means code with
+ * a reference to this key — including an XSS payload — can now call
+ * crypto.subtle.exportKey on it and read out raw bytes; it's no longer
+ * true that it can only be *used* and never exported. This was a
+ * deliberate tradeoff, not an oversight: a non-extractable key can never
+ * be wrapped or moved to a second device by design, so "multi-device" and
+ * "never extractable" are mutually exclusive — see keyManager.ts for the
+ * fuller reasoning. Storing it as a CryptoKey object here (rather than raw
+ * bytes) still matters — it stops casual misuse like accidentally logging
+ * the key — it just no longer stops a determined XSS payload the way
+ * non-extractable did.
  */
 
 const DB_NAME = 'weakchat-keys';
@@ -37,7 +48,9 @@ function openKeyDb(): Promise<IDBDatabase> {
 }
 
 /** Returns this device's stored key pair for `uid`, or null if none exists. */
-export async function getStoredKeyPair(uid: string): Promise<StoredIdentityKeyPair | null> {
+export async function getStoredKeyPair(
+  uid: string,
+): Promise<StoredIdentityKeyPair | null> {
   const database = await openKeyDb();
   return new Promise((resolve, reject) => {
     const tx = database.transaction(STORE_NAME, 'readonly');

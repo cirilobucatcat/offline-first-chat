@@ -8,6 +8,7 @@ import { auth } from '@/lib/firebase';
 import { COLOR } from '@/lib/constants';
 import { Avatar } from '../Avatar';
 import { Popover, PopoverDivider, PopoverItem } from '../ui/Popover';
+import { forgetIdentityKeyPair } from '@/lib/crypto/keyManager';
 
 export function ProfileBar() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export function ProfileBar() {
   async function handleLogout() {
     setSigningOut(true);
     try {
+      await forgetIdentityKeyPair(user?.uid ?? '');
       await signOut(auth);
       navigate('/login');
     } catch (err) {

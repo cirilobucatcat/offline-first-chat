@@ -30,8 +30,11 @@ export const MESSAGE_ALGO = 'p256-ecdh-aes256gcm-v1';
  * this closes that gap with a cheap copy rather than an `as` cast — an `as`
  * would silently accept an actual SharedArrayBuffer-backed view too, which
  * this function won't.
+ *
+ * Exported: deviceLink.ts hits the exact same Bytes → BufferSource gap when
+ * unwrapping a wrapped key, so it reuses this instead of a second copy.
  */
-function asBufferSource(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+export function asBufferSource(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
   return new Uint8Array(bytes);
 }
 
@@ -45,17 +48,21 @@ function asBufferSource(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
 export async function deriveConversationKey(
   myPrivateKey: CryptoKey,
   peerPublicKey: CryptoKey,
-  conversationId: string
+  conversationId: string,
 ): Promise<CryptoKey> {
   const sharedSecretBits = await crypto.subtle.deriveBits(
     { name: 'ECDH', public: peerPublicKey },
     myPrivateKey,
-    256
+    256,
   );
 
-  const hkdfInput = await crypto.subtle.importKey('raw', sharedSecretBits, 'HKDF', false, [
-    'deriveKey',
-  ]);
+  const hkdfInput = await crypto.subtle.importKey(
+    'raw',
+    sharedSecretBits,
+    'HKDF',
+    false,
+    ['deriveKey'],
+  );
 
   return crypto.subtle.deriveKey(
     {
@@ -71,7 +78,7 @@ export async function deriveConversationKey(
     hkdfInput,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['encrypt', 'decrypt'],
   );
 }
 
@@ -91,14 +98,18 @@ export interface EncryptedPayload {
 export async function encryptMessageText(
   key: CryptoKey,
   plaintext: string,
-  associatedData: string
+  associatedData: string,
 ): Promise<EncryptedPayload> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
 
   const ciphertextBuffer = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(associatedData) },
+    {
+      name: 'AES-GCM',
+      iv,
+      additionalData: new TextEncoder().encode(associatedData),
+    },
     key,
-    new TextEncoder().encode(plaintext)
+    new TextEncoder().encode(plaintext),
   );
 
   return {
@@ -117,7 +128,7 @@ export async function decryptMessageText(
   key: CryptoKey,
   ciphertext: Bytes,
   iv: Bytes,
-  associatedData: string
+  associatedData: string,
 ): Promise<string | null> {
   try {
     const plaintextBuffer = await crypto.subtle.decrypt(
@@ -127,7 +138,7 @@ export async function decryptMessageText(
         additionalData: new TextEncoder().encode(associatedData),
       },
       key,
-      asBufferSource(ciphertext.toUint8Array())
+      asBufferSource(ciphertext.toUint8Array()),
     );
     return new TextDecoder().decode(plaintextBuffer);
   } catch {

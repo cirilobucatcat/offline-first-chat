@@ -1,7 +1,6 @@
-<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="113" fill="#0D47A1"/>
-  <path d="M 198 215 A 58 61 0 0 1 314 215" fill="none" stroke="#E3F2FD" stroke-width="24" stroke-linecap="round"/>
-  <rect x="168" y="249" width="176" height="135" rx="24" fill="#E3F2FD"/>
-  <circle cx="256" cy="301" r="15" fill="#0D47A1"/>
-  <polygon points="248,301 264,301 261,331 251,331" fill="#0D47A1"/>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="9.6" ry="9.6" fill="rgb(49, 97, 172)"/>
+  <g transform="translate(8, 8) scale(0.6666666666666666)">
+    <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" fill="none" stroke="#E3F2FD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>
