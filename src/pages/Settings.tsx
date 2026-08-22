@@ -6,17 +6,52 @@ import { Avatar } from '@/components/Avatar';
 import { COLOR } from '@/lib/constants';
 import { Field } from '@/components/Field';
 import { useState } from 'react';
+import { updateDisplayName } from '@/lib/account';
+import { ChangePasswordModal } from '@/components/settings/ChangePasswordModal';
 import { DangerZoneSection } from '@/components/settings/DangerZoneSection';
 import { LinkedDevicesSection } from '@/components/settings/LinkedDevicesSection';
 import { PrivacySecuritySection } from '@/components/settings/PrivacySecuritySection';
+import { NotificationsSection } from '@/components/settings/NotificationsSection';
 
 export function SettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState(user?.displayName ?? 'Your name');
+  // Tracks what's actually been saved, separate from user?.displayName —
+  // updateProfile() doesn't trigger a fresh onAuthStateChanged emission,
+  // so `user` would stay stale here until next reload/sign-in.
+  const [savedName, setSavedName] = useState(user?.displayName ?? 'Your name');
   const [email] = useState(user?.email ?? 'you@example.com');
   const initials = getInitials(name);
+
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  const trimmedName = name.trim();
+  const canSaveProfile =
+    trimmedName.length > 0 && trimmedName !== savedName && !isSavingProfile;
+
+  async function handleSaveProfile() {
+    if (!user || !canSaveProfile) return;
+    setIsSavingProfile(true);
+    setProfileError(null);
+    setProfileSaved(false);
+
+    const result = await updateDisplayName(user, trimmedName);
+
+    setIsSavingProfile(false);
+    if (result.status === 'success') {
+      setSavedName(trimmedName);
+      setName(trimmedName);
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } else {
+      setProfileError("Couldn't save your name. Try again.");
+    }
+  }
 
   return (
     <div
@@ -50,7 +85,7 @@ export function SettingsPage() {
         <section
           className='rounded-2xl border p-5 md:p-6 space-y-8'
           style={{ backgroundColor: COLOR.white, borderColor: COLOR.hairline }}
-          aria-labelledby='profile-picture-heading'
+          aria-labelledby='account-settings-heading'
         >
           <div>
             <div className='mb-4'>
@@ -124,23 +159,43 @@ export function SettingsPage() {
               <Field
                 icon={User}
                 label='Full name'
-                onChange={() => setName('Settt')}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setProfileError(null);
+                }}
                 id='name'
                 type='text'
                 value={name}
               />
 
-              <Field
-                icon={Mail}
-                label='Email'
-                onChange={() => setName('Settt')}
-                id='email'
-                type='email'
-                value={email}
-              />
+              <div>
+                <label
+                  htmlFor='email'
+                  className='text-sm font-medium block mb-1.5'
+                  style={{ color: COLOR.ink }}
+                >
+                  Email
+                </label>
+                <div
+                  id='email'
+                  className='flex items-center gap-3 rounded-xl border-2 px-3.5 py-3 text-sm'
+                  style={{
+                    borderColor: '#D7E8F8',
+                    backgroundColor: '#F7FBFF',
+                    color: COLOR.muted,
+                  }}
+                >
+                  <Mail size={16} aria-hidden='true' />
+                  <span className='truncate'>{email}</span>
+                </div>
+                <p className='text-xs mt-1.5' style={{ color: COLOR.muted }}>
+                  Email changes aren't supported yet.
+                </p>
+              </div>
 
               <button
                 type='button'
+                onClick={() => setShowPasswordModal(true)}
                 className='wc-item wc-focus flex items-center justify-between rounded-xl px-4 py-3 text-left'
                 style={{ border: `1px solid ${COLOR.hairline}` }}
               >
@@ -166,19 +221,41 @@ export function SettingsPage() {
               </button>
             </div>
 
+            {profileError && (
+              <p
+                role='alert'
+                className='text-sm mt-3'
+                style={{ color: COLOR.error }}
+              >
+                {profileError}
+              </p>
+            )}
+
             <button
               type='button'
-              className='wc-focus w-full rounded-full py-2.5 text-sm font-semibold mt-5'
+              onClick={handleSaveProfile}
+              disabled={!canSaveProfile}
+              aria-live='polite'
+              className='wc-focus w-full rounded-full py-2.5 text-sm font-semibold mt-5 disabled:opacity-50 disabled:cursor-not-allowed'
               style={{ backgroundColor: COLOR.primary, color: COLOR.white }}
             >
-              Save changes
+              {isSavingProfile
+                ? 'Saving…'
+                : profileSaved
+                  ? 'Saved'
+                  : 'Save changes'}
             </button>
           </div>
         </section>
+        <NotificationsSection />
         <PrivacySecuritySection />
         <LinkedDevicesSection />
         <DangerZoneSection />
       </main>
+
+      {showPasswordModal && (
+        <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
+      )}
     </div>
   );
 }
