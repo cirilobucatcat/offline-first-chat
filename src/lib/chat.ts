@@ -68,6 +68,22 @@ export async function addParticipantsToConversation(
   await updateDoc(doc(db, 'conversations', conversationId), updates);
 }
 
+/**
+ * Thrown when a direct message can't be sent because the recipient hasn't
+ * published an identity public key on any device yet. Kept distinguishable
+ * from a generic send failure (network, permissions, etc.) so callers —
+ * see MessageArea.tsx's handleSend — can show an accurate, specific notice
+ * instead of a generic "failed to send".
+ */
+export class RecipientKeyMissingError extends Error {
+  readonly peerUid: string;
+
+  constructor(peerUid: string) {
+    super('Cannot send: recipient has not set up encryption yet.');
+    this.name = 'RecipientKeyMissingError';
+    this.peerUid = peerUid;
+  }
+}
 
 export interface SendMessageOptions {
   isGroup: boolean;
@@ -111,15 +127,20 @@ export async function sendMessage(
     updates.lastMessage = trimmed;
   } else {
     const peerUid = getDirectConversationPeerUid(participantIds, senderId);
-    const key = peerUid
-      ? await getConversationKey(conversationId, options.myPrivateKey, peerUid)
-      : null;
+    if (!peerUid) {
+      // Distinct from RecipientKeyMissingError below: this means the
+      // conversation's participant list itself is malformed, not that the
+      // peer simply hasn't set up encryption yet.
+      throw new Error('Cannot send: unable to determine conversation recipient.');
+    }
+
+    const key = await getConversationKey(conversationId, options.myPrivateKey, peerUid);
 
     if (!key) {
       // Fail closed, same rule as the rest of the E2EE work: an unclear
       // state (peer hasn't set up encryption on any device yet) is never a
       // license to fall back to plaintext.
-      throw new Error('Cannot send: recipient has not set up encryption yet.');
+      throw new RecipientKeyMissingError(peerUid);
     }
 
     const associatedData = `${conversationId}:${senderId}`;

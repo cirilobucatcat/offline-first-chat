@@ -4,7 +4,7 @@
  * reason to repeat a Firestore read or an ECDH+HKDF derive on every message).
  */
 
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import type { Bytes } from 'firebase/firestore';
 import { importPeerPublicKey } from './keyManager';
 import { deriveConversationKey, decryptMessageText } from './messageCrypto';
@@ -46,6 +46,36 @@ export async function getConversationKey(
     const key = await deriveConversationKey(myPrivateKey, peerPublicKey, conversationId);
     conversationKeyCache.set(conversationId, key);
     return key;
+}
+
+export type PeerKeyStatus = 'checking' | 'ready' | 'missing';
+
+/**
+ * Live status of whether a peer has published an identity public key, for
+ * proactively gating the composer before a send is even attempted. Unlike
+ * getConversationKey (one-time, cached for the session), this stays
+ * subscribed so the UI updates the moment the peer finishes key setup — no
+ * refresh needed. Returns an unsubscribe function.
+ */
+export function subscribePeerKeyStatus(
+    peerUid: string,
+    onStatus: (status: PeerKeyStatus) => void,
+): () => void {
+    return onSnapshot(
+        doc(db, 'users', peerUid),
+        (snap) => {
+            const hasKey = snap.exists() && Boolean(snap.data().publicKey);
+            onStatus(hasKey ? 'ready' : 'missing');
+        },
+        (err) => {
+            console.error('Failed to watch peer key status', err);
+            // A transient read/permission error isn't the same claim as "no
+            // key published" — don't block the composer on it. The
+            // send-time check in chat.ts is the real fail-closed gate; this
+            // is only ever a UX hint layered on top of it.
+            onStatus('ready');
+        },
+    );
 }
 
 /** For a direct (2-participant) conversation, returns the other participant's uid. */

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Lock, MoreVertical, ChevronLeft, Paperclip, Smile, Send, Check, CheckCheck, Clock, UserPlus, Users } from 'lucide-react';
+import { Lock, MoreVertical, ChevronLeft, Paperclip, Smile, Send, Check, CheckCheck, Clock, UserPlus, Users, ShieldAlert } from 'lucide-react';
 import {
   sendMessage,
   markConversationRead,
@@ -8,6 +8,7 @@ import {
   groupMessagesByDay,
   getConversationTitle,
   getOtherParticipant,
+  RecipientKeyMissingError,
   type ParticipantSeed,
 } from '@/lib/chat';
 import type { Conversation } from '@/types/chats';
@@ -15,6 +16,7 @@ import { Avatar } from '../Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePeerKeyStatus } from '@/hooks/usePeerKeyStatus';
 import { Popover, PopoverItem } from '../ui/Popover';
 import { COLOR } from '@/lib/constants';
 import { useMyIdentityKey } from '@/context/IdentityContext';
@@ -33,7 +35,11 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
   const { messages } = useMessages(conversation?.id ?? null, other?.uid ?? null);
   const networkStatus = useNetworkStatus();
+  const isDirect = !!conversation && !conversation.isGroup;
+  const peerKeyStatus = usePeerKeyStatus(isDirect ? other?.uid ?? null : null);
+  const keyBlocked = isDirect && peerKeyStatus === 'missing';
   const [draft, setDraft] = useState('');
+  const [sendNotice, setSendNotice] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const title = conversation && user ? getConversationTitle(conversation, user.uid) : '';
 
@@ -48,9 +54,21 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
 
+  // A stale notice from a previous conversation shouldn't linger into the next one.
+  useEffect(() => {
+    setSendNotice(null);
+  }, [conversation?.id]);
+
+  // If the peer finishes key setup while an old "not sent" notice is still
+  // showing, the banner above already communicates the fix — no need to
+  // keep the older reactive notice around too.
+  useEffect(() => {
+    if (peerKeyStatus === 'ready') setSendNotice(null);
+  }, [peerKeyStatus]);
+
   async function handleSend(e: FormEvent) {
     e.preventDefault();
-    if (!conversation || !user || !draft.trim()) return;
+    if (!conversation || !user || !draft.trim() || keyBlocked) return;
     const text = draft;
     setDraft('');
     try {
@@ -58,9 +76,15 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         isGroup: conversation.isGroup,
         myPrivateKey: privateKey,
       });
+      setSendNotice(null);
     } catch (err) {
       console.error('Failed to send message', err);
       setDraft(text);
+      setSendNotice(
+        err instanceof RecipientKeyMissingError
+          ? `${title} hasn't set up encryption yet — this message wasn't sent.`
+          : 'Something went wrong sending that message. Please try again.',
+      );
     }
   }
 
@@ -111,6 +135,18 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
           )}
         </Popover>
       </header>
+
+      {keyBlocked && (
+        <div
+          id="wc-key-blocked-notice"
+          role="status"
+          className="flex items-center gap-2 px-4 md:px-10 py-2.5 border-b text-sm"
+          style={{ backgroundColor: COLOR.white, color: COLOR.muted, borderColor: COLOR.hairline }}
+        >
+          <ShieldAlert size={15} aria-hidden="true" style={{ color: COLOR.primary, flexShrink: 0 }} />
+          <span>{title} hasn't set up encryption yet. You won't be able to send messages until they do.</span>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto wc-scroll px-4 md:px-10 py-5">
         {messages.length === 0 && <p className="text-sm text-center mt-8" style={{ color: COLOR.muted }}>Say hello 👋</p>}
@@ -168,6 +204,17 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         <div ref={bottomRef} />
       </div>
 
+      {sendNotice && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 px-4 md:px-10 py-2 text-xs border-t"
+          style={{ backgroundColor: COLOR.paleBlue, color: COLOR.muted, borderColor: COLOR.hairline }}
+        >
+          <ShieldAlert size={13} aria-hidden="true" style={{ color: COLOR.primary, flexShrink: 0 }} />
+          <span>{sendNotice}</span>
+        </div>
+      )}
+
       <form onSubmit={handleSend} className="flex items-center gap-2 px-3 md:px-4 py-3 border-t" style={{ borderColor: COLOR.hairline, backgroundColor: COLOR.white }}>
         <button type="button" aria-label="Attach file" className="wc-icon-btn wc-focus rounded-full p-2 shrink-0">
           <Paperclip size={20} aria-hidden="true" />
@@ -181,14 +228,16 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type a message"
-          className="wc-focus flex-1 rounded-full py-2.5 px-4 text-sm min-w-0"
+          placeholder={keyBlocked ? "Can't send — recipient hasn't set up encryption" : 'Type a message'}
+          disabled={keyBlocked}
+          aria-describedby={keyBlocked ? 'wc-key-blocked-notice' : undefined}
+          className="wc-focus flex-1 rounded-full py-2.5 px-4 text-sm min-w-0 disabled:opacity-60"
           style={{ backgroundColor: COLOR.paleBlue, color: COLOR.ink }}
         />
         <button
           type="submit"
           aria-label="Send message"
-          disabled={!draft.trim()}
+          disabled={!draft.trim() || keyBlocked}
           className="wc-focus rounded-full p-2.5 shrink-0 disabled:opacity-40"
           style={{ backgroundColor: COLOR.primary, color: COLOR.white }}
         >
