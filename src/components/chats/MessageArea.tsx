@@ -16,7 +16,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Popover, PopoverItem } from '../ui/Popover';
-import { COLOR } from '@/lib/constants';
 import { useMyIdentityKey } from '@/context/IdentityContext';
 import { useChatPreferences } from '@/context/ChatPreferencesContext';
 import { useAppearance } from '@/context/AppearanceContext';

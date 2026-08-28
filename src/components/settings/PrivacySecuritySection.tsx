@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Lock, LockOpen, KeyRound, ChevronRight, Info } from 'lucide-react';
-import { COLOR } from '@/lib/constants';
 import { useIdentityKeys } from '@/hooks/userIdentityKeys';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
