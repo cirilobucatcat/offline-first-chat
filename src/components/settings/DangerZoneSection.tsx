@@ -3,7 +3,6 @@ import { TriangleAlert, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import { SettingsSection } from './SettingsSection';
-import { COLOR } from '@/lib/constants';
 
 export function DangerZoneSection() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -18,20 +17,14 @@ export function DangerZoneSection() {
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium" style={{ color: COLOR.ink }}>
+            <p className="text-sm font-medium text-ink dark:text-pale-blue">
               Delete account
             </p>
-            <p className="mt-0.5 text-sm" style={{ color: COLOR.inkMuted }}>
+            <p className="mt-0.5 text-sm text-ink-muted dark:text-mist">
               Erase your profile, conversations, and message history. This can&apos;t be undone.
             </p>
           </div>
-          <Button
-            variant="dangerSolid"
-            size="sm"
-            icon={Trash2}
-            className="shrink-0"
-            onClick={() => setModalOpen(true)}
-          >
+          <Button variant="dangerSolid" size="sm" icon={Trash2} className="shrink-0" onClick={() => setModalOpen(true)}>
             Delete
           </Button>
         </div>

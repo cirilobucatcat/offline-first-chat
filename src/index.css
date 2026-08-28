@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
     --color-primary: #0D47A1;
@@ -14,6 +15,38 @@
     --color-danger-bg: #FEF2F2;
     --color-danger-border: #FECACA;
     --color-border: #DCE7F5;
+    --color-hairline: rgba(13, 71, 161, 0.14);
+    --color-surface: #1B4459;
+    /* dark-mode card/modal bg, paired with bg-white dark:bg-surface */
+    --color-accent: #7EA8F5;
+    /* dark-mode interactive color, paired with bg-primary dark:bg-accent */
+    --color-mist: #9FB8C9;
+    /* dark-mode secondary text, paired with text-muted dark:text-mist */
+    --color-error-dark: #F58F86;
+    /* 6.03:1 vs ink, 4.54:1 vs surface */
+    --color-danger-dark: #F58F86;
+    /* reused — error and danger are near-identical reds already */
+
+}
+
+html.text-size-sm {
+    font-size: 87.5%;
+}
+
+/* 14px base */
+html.text-size-lg {
+    font-size: 112.5%;
+}
+
+/* 18px base */
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
 }
 
 ::selection {

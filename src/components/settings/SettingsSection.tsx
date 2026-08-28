@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { COLOR } from '@/lib/constants';
 
 interface SettingsSectionProps {
     icon: LucideIcon;
@@ -21,25 +20,25 @@ export function SettingsSection({
 
     return (
         <section
-            className="overflow-hidden rounded-2xl border bg-white shadow-sm"
-            style={{ borderColor: isDanger ? COLOR.dangerBorder : COLOR.border }}
+            className={`overflow-hidden rounded-2xl border bg-white dark:bg-surface shadow-sm ${isDanger ? 'border-danger-border dark:border-danger-dark/40' : 'border-border dark:border-hairline-dark'
+                }`}
         >
             <div
-                className="flex items-start gap-3 border-b p-5 sm:p-6"
-                style={{ borderColor: isDanger ? '#FEE2E2' : '#EEF5FC' }}
+                className={`flex items-start gap-3 border-b p-5 sm:p-6 ${isDanger ? 'border-danger-border/60 dark:border-danger-dark/20' : 'border-hairline dark:border-hairline-dark'
+                    }`}
             >
                 <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: isDanger ? COLOR.dangerBg : COLOR.primaryLight }}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDanger ? 'bg-danger-bg dark:bg-danger-dark/15' : 'bg-primary-light dark:bg-accent/10'
+                        }`}
                 >
-                    <Icon className="h-5 w-5" style={{ color: isDanger ? COLOR.danger : COLOR.primary }} />
+                    <Icon className={`h-5 w-5 ${isDanger ? 'text-danger dark:text-danger-dark' : 'text-primary dark:text-accent'}`} />
                 </div>
                 <div>
-                    <h2 className="text-base font-semibold" style={{ color: COLOR.ink }}>
+                    <h2 className="text-base font-semibold text-ink dark:text-pale-blue">
                         {title}
                     </h2>
                     {description && (
-                        <p className="mt-0.5 text-sm" style={{ color: COLOR.inkMuted }}>
+                        <p className="mt-0.5 text-sm text-ink-muted dark:text-mist">
                             {description}
                         </p>
                     )}

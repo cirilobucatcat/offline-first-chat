@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Camera, User, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getInitials } from '../lib/users';
 import { Avatar } from '@/components/Avatar';
-import { COLOR } from '@/lib/constants';
 import { Field } from '@/components/Field';
 import { useState } from 'react';
 import { updateDisplayName } from '@/lib/account';
@@ -12,15 +11,14 @@ import { DangerZoneSection } from '@/components/settings/DangerZoneSection';
 import { LinkedDevicesSection } from '@/components/settings/LinkedDevicesSection';
 import { PrivacySecuritySection } from '@/components/settings/PrivacySecuritySection';
 import { NotificationsSection } from '@/components/settings/NotificationsSection';
+import { AppearanceSection } from '@/components/settings/AppearanceSection';
+import { ChatPreferencesSection } from '@/components/settings/ChatPreferencesSection';
 
 export function SettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState(user?.displayName ?? 'Your name');
-  // Tracks what's actually been saved, separate from user?.displayName —
-  // updateProfile() doesn't trigger a fresh onAuthStateChanged emission,
-  // so `user` would stay stale here until next reload/sign-in.
   const [savedName, setSavedName] = useState(user?.displayName ?? 'Your name');
   const [email] = useState(user?.email ?? 'you@example.com');
   const initials = getInitials(name);
@@ -54,17 +52,8 @@ export function SettingsPage() {
   }
 
   return (
-    <div
-      className='min-h-screen w-full'
-      style={{
-        fontFamily: "'Outfit', sans-serif",
-        backgroundColor: COLOR.paleBlue,
-      }}
-    >
-      <header
-        className='flex items-center gap-3 px-4 md:px-6 py-4 border-b sticky top-0'
-        style={{ borderColor: COLOR.hairline, backgroundColor: COLOR.white }}
-      >
+    <div className='min-h-screen w-full bg-pale-blue dark:bg-ink' style={{ fontFamily: "'Outfit', sans-serif" }}>
+      <header className='flex items-center gap-3 px-4 md:px-6 py-4 border-b border-hairline dark:border-hairline-dark sticky top-0 bg-white dark:bg-surface'>
         <button
           type='button'
           onClick={() => navigate('/chat')}
@@ -73,53 +62,32 @@ export function SettingsPage() {
         >
           <ChevronLeft size={22} aria-hidden='true' />
         </button>
-        <h1 className='text-xl font-semibold' style={{ color: COLOR.ink }}>
+        <h1 className='text-xl font-semibold text-ink dark:text-pale-blue'>
           Settings
         </h1>
       </header>
 
-      <main
-        className='mx-auto px-4 md:px-6 py-6 md:py-10 flex flex-col gap-6'
-        style={{ maxWidth: 640 }}
-      >
+      <main className='mx-auto px-4 md:px-6 py-6 md:py-10 flex flex-col gap-6' style={{ maxWidth: 640 }}>
         <section
-          className='rounded-2xl border p-5 md:p-6 space-y-8'
-          style={{ backgroundColor: COLOR.white, borderColor: COLOR.hairline }}
+          className='rounded-2xl border border-hairline dark:border-hairline-dark p-5 md:p-6 space-y-8 bg-white dark:bg-surface'
           aria-labelledby='account-settings-heading'
         >
           <div>
             <div className='mb-4'>
-              <h2
-                id='account-settings-heading'
-                className='text-sm font-semibold uppercase text-primary'
-                style={{ letterSpacing: '0.04em' }}
-              >
+              <h2 id='account-settings-heading' className='text-sm font-semibold uppercase text-primary dark:text-accent' style={{ letterSpacing: '0.04em' }}>
                 Profile
               </h2>
-              <p className='text-muted text-sm'>
-                Your name and account details
-              </p>
+              <p className='text-muted dark:text-mist text-sm'>Your name and account details</p>
             </div>
 
             <div className='flex flex-wrap items-center gap-5'>
-              <div
-                className='relative shrink-0'
-                style={{ width: 96, height: 96 }}
-              >
+              <div className='relative shrink-0' style={{ width: 96, height: 96 }}>
                 <Avatar initials={initials} uid={user?.uid ?? 'me'} size={96} />
                 <button
                   type='button'
                   aria-label='Change profile picture'
-                  className='wc-focus absolute flex items-center justify-center rounded-full'
-                  style={{
-                    right: -2,
-                    bottom: -2,
-                    width: 32,
-                    height: 32,
-                    backgroundColor: COLOR.primary,
-                    color: COLOR.white,
-                    border: `2px solid ${COLOR.white}`,
-                  }}
+                  className='wc-focus absolute flex items-center justify-center rounded-full bg-primary dark:bg-accent text-white dark:text-ink border-2 border-white dark:border-surface'
+                  style={{ right: -2, bottom: -2, width: 32, height: 32 }}
                 >
                   <Camera size={15} aria-hidden='true' />
                 </button>
@@ -129,26 +97,18 @@ export function SettingsPage() {
                 <div className='flex flex-wrap gap-2'>
                   <button
                     type='button'
-                    className='wc-focus rounded-full px-4 py-2 text-sm font-semibold'
-                    style={{
-                      backgroundColor: COLOR.primary,
-                      color: COLOR.white,
-                    }}
+                    className='wc-focus rounded-full px-4 py-2 text-sm font-semibold bg-primary dark:bg-accent text-white dark:text-ink'
                   >
                     Upload new picture
                   </button>
                   <button
                     type='button'
-                    className='wc-focus rounded-full px-4 py-2 text-sm font-medium'
-                    style={{
-                      color: COLOR.muted,
-                      border: `1px solid ${COLOR.hairline}`,
-                    }}
+                    className='wc-focus rounded-full px-4 py-2 text-sm font-medium text-muted dark:text-mist border border-hairline dark:border-hairline-dark'
                   >
                     Remove
                   </button>
                 </div>
-                <p className='text-xs' style={{ color: COLOR.muted }}>
+                <p className='text-xs text-muted dark:text-mist'>
                   JPG or PNG, at least 200×200px
                 </p>
               </div>
@@ -169,26 +129,17 @@ export function SettingsPage() {
               />
 
               <div>
-                <label
-                  htmlFor='email'
-                  className='text-sm font-medium block mb-1.5'
-                  style={{ color: COLOR.ink }}
-                >
+                <label htmlFor='email' className='text-sm font-medium block mb-1.5 text-ink dark:text-pale-blue'>
                   Email
                 </label>
                 <div
                   id='email'
-                  className='flex items-center gap-3 rounded-xl border-2 px-3.5 py-3 text-sm'
-                  style={{
-                    borderColor: '#D7E8F8',
-                    backgroundColor: '#F7FBFF',
-                    color: COLOR.muted,
-                  }}
+                  className='flex items-center gap-3 rounded-xl border-2 px-3.5 py-3 text-sm border-[#D7E8F8] dark:border-hairline-dark bg-[#F7FBFF] dark:bg-ink text-muted dark:text-mist'
                 >
                   <Mail size={16} aria-hidden='true' />
                   <span className='truncate'>{email}</span>
                 </div>
-                <p className='text-xs mt-1.5' style={{ color: COLOR.muted }}>
+                <p className='text-xs mt-1.5 text-muted dark:text-mist'>
                   Email changes aren't supported yet.
                 </p>
               </div>
@@ -196,37 +147,22 @@ export function SettingsPage() {
               <button
                 type='button'
                 onClick={() => setShowPasswordModal(true)}
-                className='wc-item wc-focus flex items-center justify-between rounded-xl px-4 py-3 text-left'
-                style={{ border: `1px solid ${COLOR.hairline}` }}
+                className='wc-item wc-focus flex items-center justify-between rounded-xl px-4 py-3 text-left border border-hairline dark:border-hairline-dark'
               >
                 <span>
-                  <span
-                    className='block text-sm font-medium'
-                    style={{ color: COLOR.ink }}
-                  >
+                  <span className='block text-sm font-medium text-ink dark:text-pale-blue'>
                     Change password
                   </span>
-                  <span
-                    className='block text-xs mt-0.5'
-                    style={{ color: COLOR.muted }}
-                  >
+                  <span className='block text-xs mt-0.5 text-muted dark:text-mist'>
                     Update the password used to sign in
                   </span>
                 </span>
-                <ChevronRight
-                  size={18}
-                  aria-hidden='true'
-                  style={{ color: COLOR.muted, flexShrink: 0 }}
-                />
+                <ChevronRight size={18} aria-hidden='true' className='shrink-0 text-muted dark:text-mist' />
               </button>
             </div>
 
             {profileError && (
-              <p
-                role='alert'
-                className='text-sm mt-3'
-                style={{ color: COLOR.error }}
-              >
+              <p role='alert' className='text-sm mt-3 text-error dark:text-error-dark'>
                 {profileError}
               </p>
             )}
@@ -236,17 +172,14 @@ export function SettingsPage() {
               onClick={handleSaveProfile}
               disabled={!canSaveProfile}
               aria-live='polite'
-              className='wc-focus w-full rounded-full py-2.5 text-sm font-semibold mt-5 disabled:opacity-50 disabled:cursor-not-allowed'
-              style={{ backgroundColor: COLOR.primary, color: COLOR.white }}
+              className='wc-focus w-full rounded-full py-2.5 text-sm font-semibold mt-5 disabled:opacity-50 disabled:cursor-not-allowed bg-primary dark:bg-accent text-white dark:text-ink'
             >
-              {isSavingProfile
-                ? 'Saving…'
-                : profileSaved
-                  ? 'Saved'
-                  : 'Save changes'}
+              {isSavingProfile ? 'Saving…' : profileSaved ? 'Saved' : 'Save changes'}
             </button>
           </div>
         </section>
+        <AppearanceSection />
+        <ChatPreferencesSection />
         <NotificationsSection />
         <PrivacySecuritySection />
         <LinkedDevicesSection />

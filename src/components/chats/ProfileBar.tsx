@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '@/context/AuthContext';
 import { getInitials } from '@/lib/users';
 import { auth } from '@/lib/firebase';
-import { COLOR } from '@/lib/constants';
 import { Avatar } from '../Avatar';
 import { Popover, PopoverDivider, PopoverItem } from '../ui/Popover';
 import { forgetIdentityKeyPair } from '@/lib/crypto/keyManager';
@@ -33,18 +32,15 @@ export function ProfileBar() {
   }
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 border-t shrink-0"
-      style={{ borderColor: COLOR.hairline, backgroundColor: COLOR.white }}
-    >
+    <div className="flex items-center gap-3 px-4 py-3 border-t border-hairline dark:border-hairline-dark bg-white dark:bg-surface shrink-0">
       <Avatar initials={initials} uid={user.uid} size={38} />
-      <span className="flex-1 min-w-0 truncate font-medium" style={{ color: COLOR.ink }}>
+      <span className="flex-1 min-w-0 truncate font-medium text-ink dark:text-pale-blue">
         {name}
       </span>
 
       <Popover icon={<Settings size={19} aria-hidden="true" />} label="Settings" placement="top">
         <PopoverItem
-          icon={<Settings size={17} aria-hidden="true" style={{ color: 'rgba(15, 48, 64, 0.72)' }} />}
+          icon={<Settings size={17} aria-hidden="true" className="text-muted dark:text-mist" />}
           onClick={() => navigate('/settings')}
         >
           Settings

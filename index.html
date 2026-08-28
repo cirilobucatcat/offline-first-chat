@@ -6,6 +6,27 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>offline-first-chat-app</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('weakchat:theme');
+          var isDark =
+            theme === 'dark' ||
+            (theme !== 'light' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) document.documentElement.classList.add('dark');
+
+          var textSize = localStorage.getItem('weakchat:textSize');
+          if (textSize === 'sm' || textSize === 'lg') {
+            document.documentElement.classList.add('text-size-' + textSize);
+          }
+        } catch (e) {
+          // localStorage may be unavailable (private browsing, disabled
+          // storage) — fail to defaults rather than throwing and blocking
+          // page render.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

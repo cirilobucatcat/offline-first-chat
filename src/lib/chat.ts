@@ -22,11 +22,11 @@ export interface ParticipantSeed {
 
 export async function createGroupConversation(
   creator: ParticipantSeed,
-  members: ParticipantSeed[], // other members, NOT including creator
+  members: ParticipantSeed[],
   groupName: string,
 ): Promise<string> {
   const allMembers = [creator, ...members];
-  const ref = doc(collection(db, 'conversations')); // auto-generated id — groups can't use the deterministic 1:1 id scheme
+  const ref = doc(collection(db, 'conversations'));
 
   const participantInfo: Record<string, { name: string; initials: string }> = {};
   const unreadCount: Record<string, number> = {};
@@ -68,23 +68,6 @@ export async function addParticipantsToConversation(
   await updateDoc(doc(db, 'conversations', conversationId), updates);
 }
 
-/**
- * Thrown when a direct message can't be sent because the recipient hasn't
- * published an identity public key on any device yet. Kept distinguishable
- * from a generic send failure (network, permissions, etc.) so callers —
- * see MessageArea.tsx's handleSend — can show an accurate, specific notice
- * instead of a generic "failed to send".
- */
-export class RecipientKeyMissingError extends Error {
-  readonly peerUid: string;
-
-  constructor(peerUid: string) {
-    super('Cannot send: recipient has not set up encryption yet.');
-    this.name = 'RecipientKeyMissingError';
-    this.peerUid = peerUid;
-  }
-}
-
 export interface SendMessageOptions {
   isGroup: boolean;
   myPrivateKey: CryptoKey;
@@ -114,10 +97,6 @@ export async function sendMessage(
     });
 
   if (options.isGroup) {
-    // Groups aren't encrypted yet — no single shared secret across more
-    // than two parties without per-device fan-out (planned as a separate
-    // v2). Sends exactly as before, just with `encrypted: false` made
-    // explicit instead of implicit.
     batch.set(messageRef, {
       senderId,
       text: trimmed,
@@ -127,20 +106,12 @@ export async function sendMessage(
     updates.lastMessage = trimmed;
   } else {
     const peerUid = getDirectConversationPeerUid(participantIds, senderId);
-    if (!peerUid) {
-      // Distinct from RecipientKeyMissingError below: this means the
-      // conversation's participant list itself is malformed, not that the
-      // peer simply hasn't set up encryption yet.
-      throw new Error('Cannot send: unable to determine conversation recipient.');
-    }
-
-    const key = await getConversationKey(conversationId, options.myPrivateKey, peerUid);
+    const key = peerUid
+      ? await getConversationKey(conversationId, options.myPrivateKey, peerUid)
+      : null;
 
     if (!key) {
-      // Fail closed, same rule as the rest of the E2EE work: an unclear
-      // state (peer hasn't set up encryption on any device yet) is never a
-      // license to fall back to plaintext.
-      throw new RecipientKeyMissingError(peerUid);
+      throw new Error('Cannot send: recipient has not set up encryption yet.');
     }
 
     const associatedData = `${conversationId}:${senderId}`;
@@ -154,8 +125,6 @@ export async function sendMessage(
       encrypted: true,
       createdAt: serverTimestamp(),
     });
-    // Denormalized preview field — must never hold plaintext once E2EE is
-    // live for this conversation.
     updates.lastMessage = '🔒 New message';
   }
 
@@ -163,11 +132,23 @@ export async function sendMessage(
   await batch.commit();
 }
 
-export async function markConversationRead(conversationId: string, uid: string) {
-  await updateDoc(doc(db, 'conversations', conversationId), {
-    [`unreadCount.${uid}`]: 0,
-    [`lastRead.${uid}`]: serverTimestamp(),
-  });
+export interface MarkConversationReadOptions {
+  /** Whether to advance lastRead — i.e. whether the other person should see
+   *  this as "read". unreadCount is always cleared regardless, since that's
+   *  purely local (your own badge), not something the other person sees. */
+  sendReadReceipt: boolean;
+}
+
+export async function markConversationRead(
+  conversationId: string,
+  uid: string,
+  options: MarkConversationReadOptions = { sendReadReceipt: true },
+) {
+  const updates: Record<string, unknown> = { [`unreadCount.${uid}`]: 0 };
+  if (options.sendReadReceipt) {
+    updates[`lastRead.${uid}`] = serverTimestamp();
+  }
+  await updateDoc(doc(db, 'conversations', conversationId), updates);
 }
 
 export function isLastMessageReadByAll(conversation: Conversation): boolean {
@@ -213,16 +194,17 @@ export function getConversationTitle(conversation: Conversation, currentUid: str
   return getOtherParticipant(conversation, currentUid)?.name ?? 'Unknown';
 }
 
-export function formatMessageTime(timestamp: Timestamp): string {
-  return timestamp.toDate().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+/** @param hour12 Defaults to true, matching prior (locale-default) behavior for existing callers. */
+export function formatMessageTime(timestamp: Timestamp, hour12 = true): string {
+  return timestamp.toDate().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12 });
 }
 
-export function formatRelativeTime(timestamp: Timestamp | null | undefined): string {
+export function formatRelativeTime(timestamp: Timestamp | null | undefined, hour12 = true): string {
   if (!timestamp) return '';
   const date = timestamp.toDate();
   const now = new Date();
   if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12 });
   }
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);

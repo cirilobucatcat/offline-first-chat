@@ -10,6 +10,9 @@ import Auth from './pages/Auth';
 import { SettingsPage } from './pages/Settings';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
+import { ThemeProvider } from './context/ThemeContext';
+import { ChatPreferencesProvider } from './context/ChatPreferencesContext';
+import { AppearanceProvider } from './context/AppearanceContext';
 
 const router = createBrowserRouter([
   {
@@ -43,10 +46,16 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <NetworkStatusBanner />
-      <PwaUpdatePrompt />
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ChatPreferencesProvider>
+      <AppearanceProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <NetworkStatusBanner />
+            <PwaUpdatePrompt />
+            <RouterProvider router={router} />
+          </AuthProvider>
+        </ThemeProvider>
+      </AppearanceProvider>
+    </ChatPreferencesProvider>
   </StrictMode>,
 );

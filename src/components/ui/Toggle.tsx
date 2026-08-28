@@ -1,5 +1,3 @@
-import { COLOR } from '@/lib/constants';
-
 interface ToggleProps {
   id: string;
   checked: boolean;
@@ -23,23 +21,13 @@ export function Toggle({ id, checked, onChange, label, disabled }: ToggleProps) 
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className='wc-focus relative inline-flex shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-      style={{
-        width: 44,
-        height: 26,
-        backgroundColor: checked ? COLOR.primary : COLOR.white,
-        border: `1.5px solid ${checked ? COLOR.primary : COLOR.border}`,
-      }}
+      className={`wc-focus relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${checked ? 'bg-primary dark:bg-accent' : 'bg-border dark:bg-mist/25'
+        }`}
     >
       <span
         aria-hidden='true'
-        className='inline-block rounded-full shadow transition-transform'
-        style={{
-          width: 18,
-          height: 18,
-          backgroundColor: checked ? COLOR.white : COLOR.muted,
-          transform: checked ? 'translateX(21px)' : 'translateX(3px)',
-        }}
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
       />
     </button>
   );

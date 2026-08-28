@@ -1,5 +1,4 @@
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { COLOR } from '@/lib/constants';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 const PopoverContext = createContext<{ close: () => void } | null>(null);
@@ -11,12 +10,12 @@ function usePopoverClose(): () => void {
 }
 
 interface PopoverProps {
-  icon: ReactNode; // trigger icon — caller supplies size + aria-hidden
-  label: string; // aria-label for the trigger button
-  placement?: 'bottom' | 'top'; // 'top' for triggers near the bottom of the viewport
+  icon: ReactNode;
+  label: string;
+  placement?: 'bottom' | 'top';
   align?: 'start' | 'end';
   minWidth?: number;
-  children: ReactNode; // PopoverItem / PopoverDivider elements
+  children: ReactNode;
 }
 
 export function Popover({ icon, label, placement = 'bottom', align = 'end', minWidth = 180, children }: PopoverProps) {
@@ -50,16 +49,11 @@ export function Popover({ icon, label, placement = 'bottom', align = 'end', minW
         <div
           role="menu"
           className={[
-            'absolute z-10 rounded-xl overflow-hidden',
+            'absolute z-10 rounded-xl overflow-hidden border bg-white dark:bg-surface border-hairline dark:border-hairline-dark shadow-[0_8px_24px_rgba(15,48,64,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]',
             align === 'end' ? 'right-0' : 'left-0',
             placement === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1',
           ].join(' ')}
-          style={{
-            backgroundColor: COLOR.white,
-            border: `1px solid ${COLOR.hairline}`,
-            boxShadow: '0 8px 24px rgba(15,48,64,0.12)',
-            minWidth,
-          }}
+          style={{ minWidth }}
         >
           <PopoverContext.Provider value={{ close: () => setOpen(false) }}>{children}</PopoverContext.Provider>
         </div>
@@ -87,8 +81,8 @@ export function PopoverItem({ icon, onClick, disabled = false, tone = 'default',
         close();
         onClick();
       }}
-      className="wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left disabled:opacity-50"
-      style={{ color: tone === 'danger' ? COLOR.error : COLOR.ink }}
+      className={`wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left disabled:opacity-50 ${tone === 'danger' ? 'text-error dark:text-error-dark' : 'text-ink dark:text-pale-blue'
+        }`}
     >
       {icon}
       {children}
@@ -97,5 +91,5 @@ export function PopoverItem({ icon, onClick, disabled = false, tone = 'default',
 }
 
 export function PopoverDivider() {
-  return <div role="separator" style={{ borderTop: `1px solid ${COLOR.hairline}` }} />;
+  return <div role="separator" className="border-t border-hairline dark:border-hairline-dark" />;
 }
