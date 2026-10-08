@@ -30,10 +30,6 @@ function systemPrefersDark(): boolean {
     return window.matchMedia(DARK_MEDIA_QUERY).matches;
 }
 
-function resolveTheme(preference: ThemePreference): ResolvedTheme {
-    return preference === 'system' ? (systemPrefersDark() ? 'dark' : 'light') : preference;
-}
-
 interface ThemeContextValue {
     preference: ThemePreference;
     resolvedTheme: ResolvedTheme;
@@ -44,27 +40,29 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [preference, setPreferenceState] = useState<ThemePreference>(readStoredPreference);
-    const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(preference));
+    const [systemDark, setSystemDark] = useState(systemPrefersDark);
+    const resolvedTheme: ResolvedTheme = preference === 'system' ? (systemDark ? 'dark' : 'light') : preference;
 
     // Keep <html>'s dark class in sync with the resolved theme. The inline
     // script in index.html already set the correct class before mount — this
     // just keeps it correct after any later change.
     useEffect(() => {
-        document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+        const root = document.documentElement;
+        root.classList.toggle('dark', resolvedTheme === 'dark');
+        // The browser chrome follows the surface token, read back so the value lives in one place.
+        const surface = getComputedStyle(root).getPropertyValue('--color-surface').trim();
+        if (surface) {
+            document.querySelector('meta[name="theme-color"]')?.setAttribute('content', surface);
+        }
     }, [resolvedTheme]);
 
+    // Stay in sync if the OS theme changes mid-session. It only shows while on "system".
     useEffect(() => {
-        setResolvedTheme(resolveTheme(preference));
-    }, [preference]);
-
-    // While on "system", stay in sync if the OS theme changes mid-session.
-    useEffect(() => {
-        if (preference !== 'system') return;
         const mql = window.matchMedia(DARK_MEDIA_QUERY);
-        const handleChange = () => setResolvedTheme(systemPrefersDark() ? 'dark' : 'light');
+        const handleChange = () => setSystemDark(mql.matches);
         mql.addEventListener('change', handleChange);
         return () => mql.removeEventListener('change', handleChange);
-    }, [preference]);
+    }, []);
 
     const setPreference = useCallback((next: ThemePreference) => {
         setPreferenceState(next);

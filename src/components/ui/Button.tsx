@@ -4,7 +4,8 @@ import { cn } from '@/lib/helpers';
 import { Icon, type IconName } from './Icon';
 
 const buttonVariants = cva(
-  'focus-ring inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-45',
+  // The transparent outline is what forced-colours mode draws around the fill.
+  'focus-ring inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap outline outline-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-45',
   {
     variants: {
       variant: {
@@ -17,8 +18,8 @@ const buttonVariants = cva(
       },
       size: {
         md: 'h-hit px-5 text-row-title',
-        // Only inside cards and banners.
-        sm: 'h-9 px-4 text-subhead',
+        // Only inside cards and banners. The ::before keeps the touch target at 44px.
+        sm: 'relative h-9 px-4 text-subhead before:absolute before:inset-x-0 before:-inset-y-1',
       },
       block: {
         true: 'w-full',

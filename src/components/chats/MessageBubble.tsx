@@ -29,6 +29,10 @@ interface MessageBubbleProps {
   position?: Position;
   /** Already formatted for the locale, e.g. "18:42". */
   time?: string;
+  /** The same moment in ISO 8601, for the `<time>` element. */
+  dateTime?: string;
+  /** Who said it, read before the text by screen readers: "You" or a name. */
+  speaker?: string;
   /**
    * Outgoing only. `failed` is left out: the app has no failed-write state,
    * so there is nothing to retry.
@@ -54,6 +58,8 @@ export function MessageBubble({
   direction,
   position = 'single',
   time,
+  dateTime,
+  speaker,
   status,
   sender,
   avatar,
@@ -86,9 +92,12 @@ export function MessageBubble({
           )}
         >
           {!out && sender && startsRun && (
-            <div className="mb-0.5 text-footnote font-semibold text-brand">{sender}</div>
+            <div aria-hidden={speaker ? true : undefined} className="mb-0.5 text-footnote font-semibold text-brand">
+              {sender}
+            </div>
           )}
           <div className="whitespace-pre-wrap">
+            {speaker && <span className="sr-only">{speaker}: </span>}
             {children}
             <span aria-hidden="true" className="inline-block h-px" style={{ width: metaWidth(time, shownStatus !== undefined) }} />
           </div>
@@ -98,7 +107,7 @@ export function MessageBubble({
               out ? 'text-bubble-out-meta' : 'text-ink-muted',
             )}
           >
-            {time && <time>{time}</time>}
+            {time && <time dateTime={dateTime}>{time}</time>}
             {shownStatus && <DeliveryStatus status={shownStatus} tone="bubble" />}
           </span>
         </div>

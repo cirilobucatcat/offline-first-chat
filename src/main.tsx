@@ -6,7 +6,9 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
 import { ProtectedRoute } from './components/routes/ProtectedRoutes';
 import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
-import Auth from './pages/Auth';
+import SignIn from './pages/SignIn';
+import SignUp from './pages/SignUp';
+import { AuthLayout } from './components/auth/AuthLayout';
 import { SettingsPage } from './pages/Settings';
 import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 import { ThemeProvider } from './context/ThemeContext';
@@ -15,8 +17,11 @@ import { AppearanceProvider } from './context/AppearanceContext';
 
 const router = createBrowserRouter([
   {
-    path: '/login',
-    element: <Auth />
+    element: <AuthLayout />,
+    children: [
+      { path: '/login', element: <SignIn /> },
+      { path: '/signup', element: <SignUp /> },
+    ],
   },
   {
     path: '/chat',

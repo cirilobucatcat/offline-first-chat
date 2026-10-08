@@ -1,5 +1,5 @@
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/helpers';
 import { Icon, type IconName } from './Icon';
 import { IconButton } from './IconButton';
@@ -21,33 +21,76 @@ interface PopoverProps {
   children: ReactNode;
 }
 
+/** A menu button. The arrow keys move through the items; Escape and Tab close it. */
 export function Popover({ icon, label, placement = 'bottom', align = 'end', minWidth = 180, children }: PopoverProps) {
   const [open, setOpen] = useState(false);
+  const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   useClickOutside(containerRef, () => setOpen(false), open);
+
+  // Focus goes back to the button, so it is never left on an item that no longer exists.
+  const close = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
+    menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus();
+
+    function handleKey(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') close();
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [open]);
+  }, [open, close]);
+
+  function handleMenuKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Tab') {
+      // Not prevented: Tab then carries on from the button.
+      close();
+      return;
+    }
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)'));
+    if (items.length === 0) return;
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    let next: number;
+    if (e.key === 'ArrowDown') next = (index + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = (index - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    else return;
+
+    e.preventDefault();
+    items[next].focus();
+  }
 
   return (
     <div className="relative shrink-0" ref={containerRef}>
       <IconButton
+        ref={triggerRef}
         icon={icon}
         label={label}
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="true"
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowDown' || open) return;
+          e.preventDefault();
+          setOpen(true);
+        }}
+        aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
       />
 
       {open && (
         <div
+          ref={menuRef}
+          id={menuId}
           role="menu"
+          aria-label={label}
+          onKeyDown={handleMenuKeyDown}
           className={cn(
             'absolute z-10 overflow-hidden rounded-md bg-surface-raised py-1 shadow-float',
             align === 'end' ? 'right-0' : 'left-0',
@@ -55,7 +98,7 @@ export function Popover({ icon, label, placement = 'bottom', align = 'end', minW
           )}
           style={{ minWidth }}
         >
-          <PopoverContext.Provider value={{ close: () => setOpen(false) }}>{children}</PopoverContext.Provider>
+          <PopoverContext.Provider value={{ close }}>{children}</PopoverContext.Provider>
         </div>
       )}
     </div>
@@ -76,8 +119,11 @@ export function PopoverItem({ icon, onClick, disabled = false, tone = 'default',
     <button
       type="button"
       role="menuitem"
+      // Reached with the arrow keys; the menu button is the one tab stop.
+      tabIndex={-1}
       disabled={disabled}
       onClick={() => {
+        // Closed first, so anything the item opens sees the menu button as what opened it.
         close();
         onClick();
       }}

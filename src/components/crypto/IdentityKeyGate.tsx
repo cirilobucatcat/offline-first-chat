@@ -1,29 +1,20 @@
 import { useState, type ReactNode } from 'react';
-import { Loader2, ShieldAlert } from 'lucide-react';
 import { useIdentityKeys } from '@/hooks/userIdentityKeys';
 import { IdentityKeyProvider } from '@/context/IdentityContext';
 import { logOut } from '@/lib/account';
 import { Button } from '../ui/Button';
+import { LoadingScreen } from '../ui/LoadingScreen';
+import { Notice } from '../ui/Notice';
 
 /**
  * Wraps authenticated routes and blocks rendering until this device has an
- * E2EE identity key ready. Mirrors ProtectedRoute's existing loading
- * treatment (centered Loader2, role="status", aria-live="polite").
+ * E2EE identity key ready. Shares ProtectedRoute's loading screen.
  */
 export function IdentityKeyGate({ children }: { children: ReactNode }) {
   const state = useIdentityKeys();
 
   if (state.phase === 'loading' || state.phase === 'idle') {
-    return (
-      <div
-        className='flex min-h-screen items-center justify-center'
-        role='status'
-        aria-live='polite'
-      >
-        <Loader2 className='h-6 w-6 animate-spin text-primary' />
-        <span className='ml-3 text-legacy-ink/70'>Setting up encryption…</span>
-      </div>
-    );
+    return <LoadingScreen>Setting up encryption…</LoadingScreen>;
   }
 
   if (state.phase === 'needs-link') {
@@ -43,18 +34,17 @@ export function IdentityKeyGate({ children }: { children: ReactNode }) {
 
   if (state.phase === 'error') {
     return (
-      <div
-        className='flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center text-legacy-ink'
-        role='alert'
-      >
-        <p className='max-w-sm'>Encryption couldn't be set up on this device.</p>
-        <Button variant='secondary' size='sm' onClick={state.retry}>
+      <main className='flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface px-4 py-12'>
+        <Notice tone='danger' className='max-w-sm'>
+          Encryption couldn't be set up on this device.
+        </Notice>
+        <Button variant='secondary' onClick={state.retry}>
           Try again
         </Button>
-        <Button variant='ghost' size='sm' onClick={() => void logOut()}>
+        <Button variant='ghost' onClick={() => void logOut()}>
           Sign out
         </Button>
-      </div>
+      </main>
     );
   }
 
@@ -85,50 +75,48 @@ function NeedsLinkScreen({
   }
 
   return (
-    <div
-      className='flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center'
-      role='status'
-      aria-live='polite'
-    >
-      <ShieldAlert className='h-8 w-8 text-primary' aria-hidden='true' />
-      <p className='max-w-sm text-legacy-ink'>
-        This device doesn't have your encryption key yet. On a device you've
-        already signed into, open Settings → Linked devices, choose "Link a new
-        device," and enter this code:
+    <main className='flex min-h-dvh flex-col items-center justify-center gap-4 bg-surface px-4 py-12 text-center'>
+      <h1 className='text-title text-ink'>Link this device</h1>
+      <p className='max-w-sm text-subhead text-ink-muted'>
+        This device doesn't have your encryption key yet. On a device you're
+        already signed in on, open Settings, choose "Link a new device" under
+        Linked devices, and enter this code:
       </p>
-      {expired ? (
-        <>
-          <p className='max-w-sm text-body font-semibold'>This code has expired.</p>
-          <Button variant='secondary' size='sm' onClick={onRefresh}>
-            Get a new code
-          </Button>
-        </>
-      ) : (
-        <>
-          <p
-            className='rounded-lg bg-primary/10 px-6 py-3 font-mono text-2xl tracking-[0.3em] text-primary'
-            aria-label={`Linking code: ${code.split('').join(' ')}`}
-          >
-            {code}
-          </p>
-          <Button
-            variant='secondary'
-            size='sm'
-            icon={copied ? 'check' : 'copy'}
-            onClick={handleCopy}
-          >
-            {copied ? 'Copied' : 'Copy code'}
-          </Button>
-          <p className='text-sm text-legacy-ink/60'>Waiting for the other device…</p>
-        </>
-      )}
-      <p className='max-w-sm text-footnote'>
+      {/* Only the part that changes is live, so an expired code is announced. */}
+      <div role='status' aria-live='polite' className='flex flex-col items-center gap-4'>
+        {expired ? (
+          <>
+            <p className='text-subhead font-semibold text-ink'>This code has expired.</p>
+            <Button variant='secondary' onClick={onRefresh}>
+              Get a new code
+            </Button>
+          </>
+        ) : (
+          <>
+            <p
+              className='rounded-md bg-surface-fill px-5 py-3 font-mono text-safety text-ink select-all'
+              aria-label={`Linking code: ${code.split('').join(' ')}`}
+            >
+              {code}
+            </p>
+            <Button
+              variant='secondary'
+              icon={copied ? 'check' : 'copy'}
+              onClick={handleCopy}
+            >
+              {copied ? 'Copied' : 'Copy code'}
+            </Button>
+            <p className='text-footnote text-ink-muted'>Waiting for the other device…</p>
+          </>
+        )}
+      </div>
+      <p className='max-w-sm text-footnote text-ink-muted'>
         No other signed-in device? Without one, your encrypted messages can't
         be recovered.
       </p>
-      <Button variant='ghost' size='sm' onClick={onSignOut}>
+      <Button variant='ghost' onClick={onSignOut}>
         Sign out
       </Button>
-    </div>
+    </main>
   );
 }

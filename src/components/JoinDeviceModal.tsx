@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { KeyRound } from 'lucide-react';
 import { useMyIdentityKey } from '@/context/IdentityContext';
 import { useAuth } from '@/context/AuthContext';
 import { completeLinkSession, findLinkSession } from '@/lib/crypto/deviceLink';
+import { Field } from './Field';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
+import { Notice } from './ui/Notice';
 
 interface JoinDeviceModalProps {
   onClose: () => void;
@@ -44,7 +45,11 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
       setStatus('done');
     } catch {
       setStatus('error');
-      setErrorMessage('Something went wrong. Try again.');
+      setErrorMessage(
+        navigator.onLine
+          ? 'Something went wrong. Try again.'
+          : "Linking needs a connection. Try again when you're back online.",
+      );
     }
   }
 
@@ -52,39 +57,30 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
     <Modal titleId='link-device-title' title='Link a new device' onClose={onClose}>
       <div className='px-5 py-5'>
         {status === 'done' ? (
-          <div className='flex flex-col items-center gap-3 py-4 text-center'>
-            <KeyRound className='h-8 w-8 text-primary dark:text-accent' aria-hidden='true' />
-            <p className='text-legacy-ink dark:text-pale-blue'>
+          <div className='flex flex-col gap-4'>
+            <p role='status' className='text-body text-ink'>
               Linked. Your other device should unlock automatically within a few
               seconds.
             </p>
-            <Button onClick={onClose}>Done</Button>
+            <Button block onClick={onClose}>Done</Button>
           </div>
         ) : (
           <form className='flex flex-col gap-4' onSubmit={handleSubmit}>
-            <p id='link-code-hint' className='text-sm text-legacy-ink/70 dark:text-pale-blue/70'>
-              Enter the code shown on the device you're signing in on. Codes
-              expire after 5 minutes.
-            </p>
-            <input
+            <Field
               id='link-code-input'
-              type='text'
+              label='Linking code'
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder='XXXXXXXX'
+              description="Enter the code shown on the device you're signing in on. Codes expire after 5 minutes."
               maxLength={8}
               autoComplete='off'
               autoCapitalize='characters'
-              aria-label='Linking code'
-              aria-describedby='link-code-hint'
-              className='rounded-lg border border-border dark:border-hairline-dark bg-transparent px-4 py-3 text-center font-mono text-xl tracking-[0.3em] text-legacy-ink dark:text-pale-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 dark:focus-visible:ring-accent/35'
+              autoCorrect='off'
+              spellCheck={false}
+              inputClassName='font-mono text-safety'
             />
-            {status === 'error' && (
-              <p role='alert' className='text-sm text-legacy-danger dark:text-danger-dark'>
-                {errorMessage}
-              </p>
-            )}
-            <Button type='submit' isLoading={status === 'linking'} disabled={code.trim().length < 4}>
+            {status === 'error' && <Notice tone='danger'>{errorMessage}</Notice>}
+            <Button type='submit' block isLoading={status === 'linking'} disabled={code.trim().length < 4}>
               Link device
             </Button>
           </form>

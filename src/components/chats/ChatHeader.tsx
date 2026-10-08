@@ -29,19 +29,21 @@ export function ChatHeader({ name, id, subtitle, connection = 'online', onBack, 
   return (
     <header className={cn('flex h-15 shrink-0 items-center gap-2 border-b border-line bg-surface px-1', className)}>
       {/* From md up the chat list sits beside the thread, so there is nowhere to go back to. */}
-      {onBack !== false && <IconButton icon="back" label="Back" onClick={onBack} className="text-brand md:hidden" />}
+      {onBack !== false && <IconButton icon="back" label="Back to chats" onClick={onBack} className="text-brand md:hidden" />}
       <Avatar name={name} id={id} size="md" className={onBack === false ? 'ml-3' : 'ml-0.5 md:ml-3'} />
       <div className="ml-1 flex min-w-0 flex-1 flex-col">
         <h2 className="truncate text-headline text-ink">{name}</h2>
-        <p aria-live="polite" className="flex min-h-4.5 items-center gap-1 text-footnote text-ink-muted">
-          {connection === 'online' ? (
-            subtitle
-          ) : (
-            <>
-              {connection === 'offline' ? <Icon name="cloud-off" size={14} /> : <Icon name="sync" size={14} spin />}
-              {CONNECTION_TEXT[connection]}
-            </>
-          )}
+        <p className="flex min-h-4.5 items-center text-footnote text-ink-muted">
+          {connection === 'online' && subtitle}
+          {/* Only the connection state is announced; the member count is not news. */}
+          <span aria-live="polite" className="inline-flex items-center gap-1">
+            {connection !== 'online' && (
+              <>
+                {connection === 'offline' ? <Icon name="cloud-off" size={16} /> : <Icon name="sync" size={16} spin />}
+                {CONNECTION_TEXT[connection]}
+              </>
+            )}
+          </span>
         </p>
       </div>
       {actions && <div className="flex shrink-0">{actions}</div>}

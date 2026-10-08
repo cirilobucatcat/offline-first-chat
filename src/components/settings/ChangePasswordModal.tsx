@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { changePassword } from '@/lib/account';
 import { Field } from '@/components/Field';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { Notice } from '@/components/ui/Notice';
 
 function passwordErrorMessage(code: string): string {
   switch (code) {
@@ -42,7 +43,8 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     newPassword.length >= 6 &&
     newPassword === confirmPassword;
 
-  async function handleSubmit() {
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
     if (!user || !canSubmit) return;
     setIsSubmitting(true);
     setError(null);
@@ -59,19 +61,6 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  function EyeToggle({ shown, onToggle, label }: { shown: boolean; onToggle: () => void; label: string }) {
-    return (
-      <button
-        type='button'
-        onClick={onToggle}
-        aria-label={label}
-        className='absolute right-3.5 wc-focus rounded p-0.5 text-muted dark:text-mist'
-      >
-        {shown ? <EyeOff size={16} aria-hidden='true' /> : <Eye size={16} aria-hidden='true' />}
-      </button>
-    );
-  }
-
   if (success) {
     return (
       <Modal
@@ -79,12 +68,12 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         title='Password updated'
         onClose={onClose}
         footer={
-          <Button className='w-full' onClick={onClose}>
+          <Button block onClick={onClose}>
             Done
           </Button>
         }
       >
-        <p className='px-5 py-6 text-center text-sm text-legacy-ink dark:text-pale-blue'>
+        <p role='status' className='px-5 py-6 text-subhead text-ink-muted'>
           Your password has been changed.
         </p>
       </Modal>
@@ -103,13 +92,13 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           <Button variant='ghost' onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit}>
+          <Button type='submit' form='change-password-form' isLoading={isSubmitting} disabled={!canSubmit}>
             Update password
           </Button>
         </div>
       }
     >
-      <div className='flex flex-col gap-4 px-5 py-5'>
+      <form id='change-password-form' className='flex flex-col gap-4 overflow-y-auto px-5 py-5' onSubmit={handleSubmit}>
         <Field
           id='current-password'
           label='Current password'
@@ -118,7 +107,14 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           onChange={(e) => setCurrentPassword(e.target.value)}
           autoComplete='current-password'
           rightSlot={
-            <EyeToggle shown={showCurrent} onToggle={() => setShowCurrent((s) => !s)} label={showCurrent ? 'Hide current password' : 'Show current password'} />
+            <IconButton
+              icon={showCurrent ? 'eye-off' : 'eye'}
+              label='Show current password'
+              aria-pressed={showCurrent}
+              size='sm'
+              className='absolute right-1'
+              onClick={() => setShowCurrent((s) => !s)}
+            />
           }
         />
 
@@ -129,9 +125,18 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           autoComplete='new-password'
-          rightSlot={<EyeToggle shown={showNew} onToggle={() => setShowNew((s) => !s)} label={showNew ? 'Hide new password' : 'Show new password'} />}
+          error={passwordTooShort && 'At least 6 characters.'}
+          rightSlot={
+            <IconButton
+              icon={showNew ? 'eye-off' : 'eye'}
+              label='Show new password'
+              aria-pressed={showNew}
+              size='sm'
+              className='absolute right-1'
+              onClick={() => setShowNew((s) => !s)}
+            />
+          }
         />
-        {passwordTooShort && <p className='text-xs text-error dark:text-error-dark'>At least 6 characters.</p>}
 
         <Field
           id='confirm-password'
@@ -140,15 +145,11 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           autoComplete='new-password'
+          error={passwordsMismatch && "Passwords don't match."}
         />
-        {passwordsMismatch && <p className='text-xs text-error dark:text-error-dark'>Passwords don't match.</p>}
 
-        {error && (
-          <p role='alert' className='text-sm text-error dark:text-error-dark'>
-            {error}
-          </p>
-        )}
-      </div>
+        {error && <Notice tone='danger'>{error}</Notice>}
+      </form>
     </Modal>
   );
 }

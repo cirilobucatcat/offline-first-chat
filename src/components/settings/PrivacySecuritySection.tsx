@@ -1,79 +1,49 @@
 import { useState } from 'react';
-import { Lock, LockOpen, KeyRound, ChevronRight, Info } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Notice } from '@/components/ui/Notice';
+import { SettingsLinkRow } from './SettingsLinkRow';
+import { SettingsSection } from './SettingsSection';
 
 export function PrivacySecuritySection() {
   const [showInfo, setShowInfo] = useState(false);
 
   return (
-    <section
-      className='rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface p-5 md:p-6 space-y-5'
-      aria-labelledby='privacy-security-heading'
+    <SettingsSection
+      id='privacy-security-heading'
+      title='Privacy and security'
+      description='How your messages are protected'
     >
       <div>
-        <h2
-          id='privacy-security-heading'
-          className='text-sm font-semibold uppercase text-primary dark:text-accent'
-          style={{ letterSpacing: '0.04em' }}
-        >
-          Privacy & Security
-        </h2>
-        <p className='text-muted dark:text-mist text-sm'>How your messages are protected</p>
-      </div>
-
-      <div className='flex flex-col gap-3'>
-        <div className='flex items-start gap-3 rounded-xl px-4 py-3 border border-hairline dark:border-hairline-dark'>
-          <Lock size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-primary dark:text-accent' />
-          <div>
-            <p className='text-sm font-medium text-legacy-ink dark:text-pale-blue'>Direct messages</p>
-            <p className='text-xs mt-0.5 text-muted dark:text-mist'>
-              End-to-end encrypted. Only you and the person you're messaging
-              can read them — not even WeakChat can.
-            </p>
-          </div>
-        </div>
-
-        <div className='flex items-start gap-3 rounded-xl px-4 py-3 border border-hairline dark:border-hairline-dark'>
-          <LockOpen size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-muted dark:text-mist' />
-          <div>
-            <p className='text-sm font-medium text-legacy-ink dark:text-pale-blue'>Group chats</p>
-            <p className='text-xs mt-0.5 text-muted dark:text-mist'>
-              Not end-to-end encrypted yet. Encrypted groups are planned for
-              a future update.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <button
-        type='button'
-        onClick={() => setShowInfo(true)}
-        className='wc-item wc-focus flex w-full items-center justify-between rounded-xl px-4 py-3 text-left border border-hairline dark:border-hairline-dark'
-      >
-        <span className='flex min-w-0 items-center gap-3'>
-          <KeyRound size={18} aria-hidden='true' className='shrink-0 text-primary dark:text-accent' />
-          <span className='min-w-0'>
-            <span className='block text-sm font-medium text-legacy-ink dark:text-pale-blue'>Encryption key</span>
-            {/* Settings renders inside IdentityKeyGate, so the key is always here. */}
-            <span className='block text-xs mt-0.5 text-muted dark:text-mist'>
-              Active on this device
-            </span>
-          </span>
-        </span>
-        <ChevronRight size={18} aria-hidden='true' className='shrink-0 text-muted dark:text-mist' />
-      </button>
-
-      <div className='flex gap-3 rounded-xl px-4 py-3 bg-pale-blue dark:bg-accent/10'>
-        <Info size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-primary dark:text-accent' />
-        <p className='text-xs text-legacy-ink dark:text-pale-blue'>
-          <strong>No recovery yet.</strong> If you lose access to every
-          device signed into WeakChat, encrypted message history can't be
-          restored. Use Linked devices below to add a second device while
-          you still have this one. Logging out keeps your key on this
-          device.
+        <p className='text-row-title text-ink'>Direct messages</p>
+        <p className='mt-0.5 text-footnote text-ink-muted'>
+          End-to-end encrypted. Only you and the person you're messaging
+          can read them — not even WeakChat can.
         </p>
       </div>
+
+      <div>
+        <p className='text-row-title text-ink'>Group chats</p>
+        <p className='mt-0.5 text-footnote text-ink-muted'>
+          Not end-to-end encrypted yet. Encrypted groups are planned for
+          a future update.
+        </p>
+      </div>
+
+      {/* Settings renders inside IdentityKeyGate, so the key is always here. */}
+      <SettingsLinkRow
+        label='Encryption key'
+        description='Active on this device'
+        onClick={() => setShowInfo(true)}
+      />
+
+      <Notice>
+        <strong className='font-semibold text-ink'>No recovery yet.</strong> If you lose access to every
+        device signed into WeakChat, encrypted message history can't be
+        restored. Use Linked devices below to add a second device while
+        you still have this one. Logging out keeps your key on this
+        device.
+      </Notice>
 
       {showInfo && (
         <Modal
@@ -81,17 +51,18 @@ export function PrivacySecuritySection() {
           title='How your messages are protected'
           onClose={() => setShowInfo(false)}
           footer={
-            <Button variant='primary' size='md' onClick={() => setShowInfo(false)} className='w-full'>
-              Got it
+            <Button variant='secondary' block onClick={() => setShowInfo(false)}>
+              Close
             </Button>
           }
         >
-          {/* Left as-is (COLOR-object, light-only) — Modal's own panel
-              background isn't in a file I have yet, so I don't know if
-              it's dark-aware. Switching this text to dark: colors without
-              that guarantee risks light text on a light panel silently
-              becoming illegible instead of just staying light-mode. */}
-          <div className='space-y-3 overflow-y-auto px-5 py-4 text-sm text-legacy-ink dark:text-pale-blue'>
+          {/* Focusable, so the text can be scrolled from the keyboard. */}
+          <div
+            tabIndex={0}
+            role='group'
+            aria-labelledby='encryption-info-title'
+            className='wc-scroll focus-ring-inset flex flex-col gap-3 overflow-y-auto px-5 py-4 text-subhead text-ink'
+          >
             <p>
               Direct messages are encrypted before they leave your device
               and decrypted only on the recipient's. Our servers only ever
@@ -119,13 +90,13 @@ export function PrivacySecuritySection() {
               own copy of the group's key, which is a bigger change we're
               planning for a future release.
             </p>
-            <p className='text-muted dark:text-mist'>
+            <p className='text-ink-muted'>
               There's no way to recover your keys if every linked device is
               lost. A recovery option is planned but not available yet.
             </p>
           </div>
         </Modal>
       )}
-    </section>
+    </SettingsSection>
   );
 }

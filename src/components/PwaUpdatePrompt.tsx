@@ -1,6 +1,7 @@
 /// <reference types="vite-plugin-pwa/react" />
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 
 /**
  * Surfaces two service-worker lifecycle events the person should actually
@@ -37,9 +38,10 @@ export function PwaUpdatePrompt() {
     <div
       role='status'
       aria-live='polite'
-      className='fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-legacy-ink px-4 py-3 text-pale-blue shadow-lg'
+      // The transparent outline is the toast's edge in forced-colours mode.
+      className='fixed bottom-4 left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-md bg-surface-raised py-2 pr-2 pl-4 text-subhead text-ink shadow-float outline outline-transparent [--focus-gap:var(--color-surface-raised)]'
     >
-      <span className='text-sm'>
+      <span className='min-w-0'>
         {needRefresh
           ? 'A new version of WeakChat is ready.'
           : 'WeakChat is ready to work offline.'}
@@ -47,7 +49,7 @@ export function PwaUpdatePrompt() {
 
       {needRefresh && (
         <Button
-          variant='primary'
+          variant='secondary'
           size='sm'
           onClick={() => updateServiceWorker(true)}
         >
@@ -55,13 +57,7 @@ export function PwaUpdatePrompt() {
         </Button>
       )}
 
-      <button
-        onClick={dismiss}
-        aria-label='Dismiss'
-        className='text-pale-blue/70 hover:text-pale-blue'
-      >
-        ✕
-      </button>
+      <IconButton icon='close' label='Dismiss' size='sm' onClick={dismiss} />
     </div>
   );
 }

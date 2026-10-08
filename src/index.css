@@ -21,33 +21,16 @@
 }
 
 @theme {
-    /* Legacy palette: predates the design system and goes when the last screen is migrated.
-       The four legacy-* names were renamed to free ink, ink-muted, surface and danger. */
-    --color-primary: #0D47A1;
-    --color-primary-light: #E3F2FD;
-    --color-pale-blue: #E3F2FD;
-    --color-legacy-ink: #0F3040;
-    --color-legacy-ink-muted: #4B6577;
-    --color-muted: rgba(15, 48, 64, 0.72);
-    --color-error: #B3261E;
-    --color-legacy-danger: #B91C1C;
-    --color-danger-bg: #FEF2F2;
-    --color-danger-border: #FECACA;
-    --color-border: #DCE7F5;
-    --color-hairline: rgba(13, 71, 161, 0.14);
-    --color-legacy-surface: #1B4459;
-    /* dark-mode card/modal bg, paired with bg-white dark:bg-legacy-surface */
-    --color-accent: #7EA8F5;
-    /* dark-mode interactive color, paired with bg-primary dark:bg-accent */
-    --color-mist: #9FB8C9;
-    /* dark-mode secondary text, paired with text-muted dark:text-mist */
-    --color-error-dark: #F58F86;
-    /* 6.03:1 vs legacy-ink, 4.54:1 vs legacy-surface */
-    --color-danger-dark: #F58F86;
-    /* reused — error and danger are near-identical reds already */
+    /* The theme is closed. Tailwind's own colours, radii, shadows and type sizes are cleared
+       first, so a class from outside the design system, such as bg-white or text-sm, emits
+       nothing. */
+    --color-*: initial;
+    --radius-*: initial;
+    --shadow-*: initial;
+    --text-*: initial;
 
     /* Design system colours. These are the light values; .dark below holds the dark ones,
-       so a token needs one class and no dark: pair. */
+       so a token needs one class and no theme variant. */
     --color-canvas: #ebeff6;
     --color-surface: #ffffff;
     --color-surface-raised: #ffffff;
@@ -250,6 +233,18 @@ html.text-size-lg {
 
 body {
     font-family: var(--font-sans);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+}
+
+/* Sign-in and sign-up: the ground pattern clears softly around the form column. */
+/* The sign-in card: an opaque raised ground that also clears the pattern behind the form.
+   The hairline carries the edge in light mode, where surface and surface-raised are both white. */
+@utility auth-clearing {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-line);
+    background-color: var(--color-surface-raised);
+    box-shadow: var(--elevation-float);
 }
 
 input:-webkit-autofill,
@@ -260,54 +255,6 @@ input:-webkit-autofill:focus {
     transition: background-color 5000s ease-in-out 0s;
 }
 
-@keyframes fadeSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(8px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.auth-card {
-    animation: fadeSlideUp 0.5s ease-out;
-}
-
-.field-fade {
-    animation: fadeSlideUp 0.35s ease-out;
-}
-
-.btn-primary {
-    box-shadow: 0 4px 14px rgba(13, 71, 161, 0.3);
-    transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.btn-primary:hover {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(13, 71, 161, 0.38);
-}
-
-.btn-primary:active {
-    filter: brightness(0.94);
-    transform: translateY(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-
-    .auth-card,
-    .field-fade {
-        animation: none;
-    }
-
-    .btn-primary:hover {
-        transform: none;
-    }
-}
-
 .wc-scroll::-webkit-scrollbar {
     width: 6px;
 }
@@ -315,26 +262,4 @@ input:-webkit-autofill:focus {
 .wc-scroll::-webkit-scrollbar-thumb {
     background-color: var(--color-line);
     border-radius: 9999px;
-}
-
-.wc-item:hover {
-    background-color: #E3F2FD;
-}
-
-.wc-icon-btn {
-    color: rgba(15, 48, 64, 0.72);
-}
-
-.wc-icon-btn:hover {
-    background-color: #E3F2FD;
-    color: #0D47A1;
-}
-
-.wc-focus:focus {
-    outline: none;
-}
-
-.wc-focus:focus-visible {
-    outline: 2px solid #0D47A1;
-    outline-offset: 2px;
 }

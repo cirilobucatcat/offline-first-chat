@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { createOrGetConversation, useConversations } from '../hooks/useConversations';
 import { addParticipantsToConversation, createGroupConversation, type ParticipantSeed } from '../lib/chat';
@@ -21,6 +21,30 @@ export default function Chats() {
   const [modalError, setModalError] = useState<string | null>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
+
+  // A phone shows one pane at a time. When the pane that held focus is hidden,
+  // focus moves to the one that replaced it instead of dropping to the page.
+  const listRef = useRef<HTMLElement>(null);
+  const threadRef = useRef<HTMLElement>(null);
+  const previousId = useRef<string | null>(null);
+  useEffect(() => {
+    const cameFrom = previousId.current;
+    previousId.current = activeId;
+    if (cameFrom === activeId) return;
+
+    const focused = document.activeElement;
+    const focusIsVisible = focused instanceof HTMLElement && focused !== document.body && focused.offsetParent !== null;
+    if (focusIsVisible) return;
+
+    if (activeId) {
+      threadRef.current?.focus();
+      return;
+    }
+    const row = cameFrom
+      ? listRef.current?.querySelector<HTMLElement>(`[data-chat-id="${CSS.escape(cameFrom)}"]`)
+      : null;
+    (row ?? listRef.current)?.focus();
+  }, [activeId]);
 
   const me: ParticipantSeed | null = user
     ? { uid: user.uid, name: user.displayName ?? 'You', initials: getInitials(user.displayName ?? '') }
@@ -76,6 +100,7 @@ export default function Chats() {
         onStartConversation={handleStartConversation}
         onOpenNewGroup={openNewGroup}
         mobileHidden={!!activeId}
+        paneRef={listRef}
       />
       <MessageArea
         conversation={activeConversation}
@@ -83,6 +108,7 @@ export default function Chats() {
         onAddPeople={openAddPeople}
         onCreateGroupWithUser={openCreateGroupWithUser}
         mobileHidden={!activeId}
+        paneRef={threadRef}
       />
       {groupModal && user && (
         <NewGroupModal

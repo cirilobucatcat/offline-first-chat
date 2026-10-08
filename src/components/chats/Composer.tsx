@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/helpers';
 import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
@@ -22,6 +22,7 @@ interface ComposerProps {
 /** The message bar at the bottom of a thread. Enter sends; Shift+Enter adds a line. */
 export function Composer({ value, onChange, onSend, offline = false, held = false, notice, className }: ComposerProps) {
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const noticeId = useId();
   const canSend = value.trim().length > 0 && !held;
 
   // Grow with the text, up to the max height set on the textarea.
@@ -46,7 +47,7 @@ export function Composer({ value, onChange, onSend, offline = false, held = fals
 
   return (
     <form onSubmit={handleSubmit} className={cn('border-t border-line bg-surface', className)}>
-      {notice}
+      {notice && <div id={noticeId}>{notice}</div>}
       {offline && (
         <p role="status" className="flex items-center gap-1.5 px-4 pt-2 text-footnote text-ink-muted">
           <Icon name="clock" size={16} />
@@ -54,7 +55,7 @@ export function Composer({ value, onChange, onSend, offline = false, held = fals
         </p>
       )}
       <div className="flex items-end gap-1 p-2">
-        <label className="flex min-h-hit min-w-0 flex-1 items-end rounded-bubble bg-surface-fill px-4 focus-within:shadow-[inset_0_0_0_1.5px_var(--color-line-strong)]">
+        <label className="focus-ring-within flex min-h-hit min-w-0 flex-1 items-end rounded-bubble bg-surface-fill px-4">
           <span className="sr-only">Message</span>
           <textarea
             ref={fieldRef}
@@ -63,6 +64,7 @@ export function Composer({ value, onChange, onSend, offline = false, held = fals
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Message"
+            aria-describedby={notice ? noticeId : undefined}
             className="max-h-33 min-w-0 flex-1 resize-none bg-transparent py-2.75 text-body text-ink outline-none placeholder:text-ink-muted"
           />
         </label>

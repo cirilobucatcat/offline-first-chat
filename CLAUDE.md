@@ -53,7 +53,7 @@ Import from `src/` with the `@/` alias (set in `vite.config.ts` and `tsconfig.ap
 
 ### Route gating and the identity key
 
-`src/main.tsx` defines `/login`, `/chat` and `/settings`. Protected pages render inside `ProtectedRoute`, which wraps them in `IdentityKeyGate` and `IdentityKeyProvider`. The gate blocks rendering until this device holds the account's encryption key.
+`src/main.tsx` defines `/login`, `/signup`, `/chat` and `/settings`. The two sign-in routes share the `AuthLayout` layout route. Protected pages render inside `ProtectedRoute`, which wraps them in `IdentityKeyGate` and `IdentityKeyProvider`. The gate blocks rendering until this device holds the account's encryption key.
 
 - `useMyIdentityKey()` returns the device's `CryptoKeyPair` and throws outside the gate. Use it wherever a key is needed.
 - `useIdentityKeys()` runs the whole setup flow (create, load, or link) and registers the device. It lives in `src/hooks/userIdentityKeys.ts`; note the filename. Do not call it just to read the key.
@@ -122,87 +122,45 @@ https://claude.ai/artifact/4xdtb4NHAPUVKsCqpbwkw6
 
 Read it with the Artifact tool before UI work. Start with `project/README.md` (the brand book), then `project/tokens.json`, then `project/components/<Name>/README.md` for the component in hand. Prop types are in `project/components/index.d.ts`. The rest of this section is a snapshot of version 1, taken on 2026-10-08. Where the snapshot and the artifact disagree, the artifact wins.
 
-### Migration status
+### Current state
 
-The code predates the design system and is being migrated to it in phases. The foundation, the shared components and the chat screens are in. Settings, sign-in and the encryption gate still use the old palette.
+Every screen is on the design system. The migration from the older palette finished on 2026-10-09, and nothing of that palette is left.
 
-- **Palette.** `@theme` in `src/index.css` holds both palettes. The design-system tokens have their real names. The older palette (`primary` `#0D47A1`, `pale-blue`, `accent`, `mist` and others) stays until the last screen moves. Unmigrated screens switch themes with `dark:` class pairs such as `bg-white dark:bg-legacy-surface`, `text-legacy-ink dark:text-pale-blue` and `bg-primary dark:bg-accent`.
-- **Themed tokens.** Each design-system colour has one name with a light and a dark value. In code that is a CSS variable overridden under `.dark`, so a design-system colour needs one class and no `dark:` pair. Shadows work the same way through the `--elevation-*` variables.
-- **Legacy names.** `surface`, `ink`, `ink-muted` and `danger` existed in both palettes with different values, so the old ones are now `legacy-surface`, `legacy-ink`, `legacy-ink-muted` and `legacy-danger`. Never use a `legacy-*` class in new or changed UI. The migration is finished when none is left.
+- **Closed theme.** `@theme` in `src/index.css` clears Tailwind's `--color-*`, `--radius-*`, `--shadow-*` and `--text-*` namespaces, then defines only the design-system values. A class from outside the system, such as `bg-white`, `text-sm`, `rounded-lg` or `shadow-lg`, emits nothing and fails silently. `rounded-full` and `bg-transparent` still work, because they are not theme values.
+- **Themed tokens.** Each colour has one name with a light and a dark value: a CSS variable overridden under `.dark`. A colour needs one class and never a `dark:` pair. Shadows work the same way through the `--elevation-*` variables.
 - **Class merging.** `cn()` is configured with the design-system text, radius, shadow, spacing and animation names. Add a new token name there as well as to `@theme`, or `cn()` will drop it when it meets a colour class.
 - **Font loading.** Outfit ships with the app from `@fontsource-variable/outfit`, declared as the family `Outfit` in `src/index.css` and precached by Workbox.
-- **Icons.** `Icon` in `src/components/ui/Icon.tsx` holds the design system's 24 glyphs, plus the glyphs it does not draw (close, settings, eye and others), which come from `lucide-react` at the same stroke. Unmigrated screens still import `lucide-react` directly; new and changed UI must not.
-- **Components.** `Icon`, `IconButton`, `Button`, `Badge`, `Avatar`, `DeliveryStatus`, `MessageBubble`, `SystemNotice`, `Composer`, `ChatListItem`, `ChatHeader` and `ConnectionBanner` are in use. `TypingIndicator` and `SafetyNumber` are not built, because the app has neither feature. The modal, popover, toggle, field and settings card are restyled to the tokens. `SearchField` in `src/components/ui/` and `PersonRow` in `src/components/chats/` are this app's own, for the search input and the people results the design system does not specify.
-- **Chat screens.** `ConversationList`, `MessageArea`, `ProfileBar` and `NewGroupModal` are on tokens. The thread opens with the encryption notice in a direct chat and the not-encrypted notice in a group. The Comfortable / Compact setting is gone. `ConnectionBanner` on the chat list replaced the global `NetworkStatusBanner`, so settings and sign-in show no connection state until their phases; `NetworkStatusBanner.tsx` is unused and goes in phase 5.
+- **Icons.** `Icon` in `src/components/ui/Icon.tsx` holds the design system's 24 glyphs, plus the glyphs it does not draw (close, settings, eye and others), which come from `lucide-react` at the same stroke. Nothing else imports `lucide-react`.
+- **Components.** `Icon`, `IconButton`, `Button`, `Badge`, `Avatar`, `DeliveryStatus`, `MessageBubble`, `SystemNotice`, `Composer`, `ChatListItem`, `ChatHeader` and `ConnectionBanner` are built from the design system. `TypingIndicator` and `SafetyNumber` are not built, because the app has neither feature.
+- **This app's own.** For what the design system does not specify:
+  - `Modal`, `Popover`, `ToggleRow`, `SearchField`, `SegmentedControl`, `Notice` and `LoadingScreen` in `src/components/ui/`
+  - `Field` in `src/components/`
+  - `PersonRow` in `src/components/chats/`
+  - `SettingsSection` and `SettingsLinkRow` in `src/components/settings/`
+  - `AuthLayout`, `AuthSwitch` and `AuthPattern` in `src/components/auth/`
+- **Sign-in and sign-up.** Two pages, `/login` and `/signup`, inside the `AuthLayout` layout route, which stays mounted when one links to the other. Each is one column on `surface`: the wordmark, a `display` title, the form, one primary button and a link to the other page. `AuthPattern` draws scattered noodles in `line` behind both, and the `auth-clearing` utility clears the pattern around the column. The pattern is decoration for these two pages only.
+- **Gates and prompts.** `ProtectedRoute` and `IdentityKeyGate` share `LoadingScreen`. The link-code screen shows the code in the `safety` style and carries no glyph, because `lock`, `key` and `shield-check` have fixed meanings. `PwaUpdatePrompt` is a `surface-raised` toast.
+- **Chat screens.** The thread opens with the encryption notice in a direct chat, without "and calls", and with "Messages in this group are not end-to-end encrypted." in a group. `ConnectionBanner` on the chat list is the only connection display. It carries no count, because there is no outbox to count.
+- **Delivery.** `createdAt === null` is `queued` when offline and `sending` when online. A set `createdAt` is `sent`, and `isMessageReadByAll` is `read`. Nothing produces `delivered` or `failed`. Chat list rows use the same mapping.
 - **Direct-message preview.** `DIRECT_MESSAGE_PREVIEW` in `src/lib/chat.ts` is what `sendMessage` stores and what the chat list renders for any direct chat, whatever string the conversation doc holds.
-- **Copy and marks.** The lock on direct chat headers and the emoji in chat copy are gone. Unmigrated screens have not been checked for emoji.
-- **Done ahead of their phase.** A bug-fix pass removed the stub controls and the overclaiming copy without restyling the screens: the chat list lock line, Attach and Emoji, the profile picture controls, Forgot password, Remember me, and the terms checkbox. The same pass wired `usePeerKeyStatus` and the send-failure alert into `MessageArea`, added sign-out and the expired-code state to `IdentityKeyGate`, and rewrote `DeleteAccountModal` on tokens.
-- **Legacy defects.** `dark:border-hairline-dark` is used in 7 files, all in settings, but the token is undefined and emits no CSS. The `wc-item`, `wc-icon-btn`, `wc-focus` and `wc-scroll` helper classes hard-code light colours.
+- **Settings.** Every section is a `SettingsSection`; theme, text size and timestamp are `SegmentedControl`s; switches are `ToggleRow`. `danger` appears only in `DeleteAccountModal`. "Forget" and "Remove from list" are `secondary`, because they edit a cosmetic list. "Link a new device" stays enabled offline and the sheet reports the connection. `ThemeContext` sets the `theme-color` meta from the computed `surface` token.
+- **Accessibility.** `Modal` moves focus in, traps Tab and returns focus to what opened it. `Popover` is a keyboard menu: arrow keys, Home, End, Escape, and focus back on its button. On a phone, `Chats` moves focus to the thread when a chat opens and back to its row on Back. `MessageArea` announces an incoming message through an `sr-only` live line and never re-reads history; every bubble carries an `sr-only` speaker. Fills that would vanish in forced-colours mode carry a transparent outline. `sm` buttons extend their touch target to 44px with a `::before`.
+- **Browser review.** Sign-in, sign-up and the not-found page were checked in a browser, in both themes, at phone and desktop width. The chat screens, settings, the encryption gate, the link-code screen and the update toast have not been.
+- **Open lint findings.** The five context files fail `react-refresh/only-export-components`, because each exports its hook beside its provider. `useConversations` and `useMessages` fail `react-hooks/set-state-in-effect`. `npm run lint` reports these seven and should report nothing else.
 
-### Migration phases
+A search over `src/` must keep finding none of these:
 
-The migration lands one phase at a time, and the running app is reviewed between phases. Do one phase per request. After a phase, run `npm run lint` and `npm run build`, clear the lint findings in the files that phase rewrote, and update the table below and "Migration status" above.
-
-| Phase | Status | Scope |
-|---|---|---|
-| 0. Foundation | Done | Tokens in `@theme`, the `legacy-*` rename, self-hosted Outfit, the `cn()` config, document title and theme colour |
-| 1. Shared components | Done, not yet reviewed in a browser | The components listed under "Components" above |
-| 2. Chat screens | Done, not yet reviewed in a browser | `src/pages/Chats.tsx` and `ConversationList`, `MessageArea`, `ProfileBar`, `NewGroupModal` in `src/components/chats/` |
-| 3. Settings | Next | `src/pages/Settings.tsx`, `src/components/settings/`, `src/components/JoinDeviceModal.tsx` |
-| 4. Sign-in, gates, prompts | Pending | `src/pages/Auth.tsx`, `src/components/auth/`, `IdentityKeyGate`, `ProtectedRoutes`, `NotFound`, `PwaUpdatePrompt` |
-| 5. Cleanup | Pending | Remove the old palette and helper classes, close the theme |
-
-**Phase 2: chat screens**
-
-- **Chat list.** The header is the `title` "Chats" and a ghost `IconButton` (`compose`) that opens the existing popover. The lock line is already gone. `ConnectionBanner` sits under the header and replaces the global `NetworkStatusBanner` in `src/main.tsx`. Rows are `ChatListItem`.
-- **Times.** `formatRelativeTime` shows a time today, a weekday this week and a date when older, and is passed the 12h/24h preference, which the list ignores today.
-- **Thread.** The ground is `canvas` with `space-3` gutters. The `ChatHeader` subtitle is "4 members" in a group, empty in a direct chat, and the connection text whenever the app is not online. Back is hidden from `md` up.
-- **First item.** A direct chat opens with the encryption notice, without "and calls" because the app has no calls. A group opens with an `info` notice: "Messages in this group are not end-to-end encrypted."
-- **Runs.** Add `groupMessagesIntoRuns` beside `groupMessagesByDay` in `src/lib/chat.ts`: same sender, same day, within five minutes.
-- **Delivery.** `createdAt === null` is `queued` when offline and `sending` when online. A set `createdAt` is `sent`, and `isMessageReadByAll` is `read`. Nothing produces `delivered` or `failed`. Chat list rows use the same mapping with `lastMessageAt === null` and `isLastMessageReadByAll`.
-- **Connection.** `useNetworkStatus()` maps straight across; `connecting` is unused. The offline banner carries no count, because there is no outbox to count.
-- **Composer.** Replace the form in `MessageArea` with `Composer`. The behaviour is already there and moves across: `held` is `peerKeyStatus === 'missing'`, and `notice` is the no-key line or the `role="alert"` line for a send that threw. Attach and Emoji are already gone.
-- **Density.** The Comfortable / Compact setting is removed from `MessageArea`, `AppearanceContext` and `AppearanceSection`.
-- **Copy.** No emoji in the placeholder strings in `src/lib/chat.ts` and `src/lib/crypto/conversationKeys.ts`. The chat list shows the fixed direct-message preview at render time, so conversations that already store the old string stop showing the lock.
-
-**Phase 3: settings**
-
-- The page ground is `surface`. All seven sections use `SettingsSection`, with `headline` titles in sentence case.
-- The three hand-rolled radio groups (theme, text size, timestamp) become one `src/components/ui/SegmentedControl.tsx`, with a check on the selected segment.
-- The profile has an `xl` avatar and no upload, remove or camera controls (already removed). "Save changes" is the page's one primary button.
-- `danger` is for the delete-account confirmation only. "Forget" and "Remove from list" are `secondary`, because they edit a cosmetic list.
-- The `lock` glyph leaves the privacy rows.
-- `ThemeContext` keeps the `theme-color` meta in step with the theme. Today only the inline script in `index.html` sets it, so it is stale after an in-app switch.
-
-**Phase 4: sign-in, gates, prompts**
-
-- Sign-in is one column on `surface`: the wordmark, a `display` title, the fields, one block primary button, a ghost link that switches mode and updates the URL, and the footnote "Direct messages are end-to-end encrypted. Group chats are not yet."
-- Removed: the brand panel, the logo mark, the feature list, the testimonial and the pulse. Forgot password, Remember me and the terms checkbox with its gating are already gone, and the footnote already has its final wording.
-- Errors are `danger` on `danger-soft` with the `alert` glyph and `role="alert"`.
-- `IdentityKeyGate`, the route loader and `NotFound` move to tokens. The linking code uses the `safety` style.
-- `PwaUpdatePrompt` becomes a `surface-raised` toast with a `secondary` Reload and a labelled close button.
-- `body` gets `surface` and `ink` here, once no screen relies on the white default.
-
-**Phase 5: cleanup**
-
-- Delete every old token from `@theme`, and the `wc-item`, `wc-icon-btn`, `wc-focus`, `btn-primary`, `auth-card` and `field-fade` helpers.
-- Delete `NetworkStatusBanner.tsx`, `auth/FeatureItem.tsx`, `Checkbox.tsx`, the colour constants in `src/lib/constants.ts` and the empty `src/App.css`.
-- Reset the `--color-*`, `--radius-*`, `--shadow-*` and `--text-*` namespaces to `initial` ahead of the design-system values, so an off-system class such as `bg-white` or `text-sm` emits nothing.
-- Replace "Migration status" and this section with a short description of the finished state.
-
-The migration is finished when a search over `src/` finds none of these:
-
-- a `legacy-*`, `hairline-dark`, `pale-blue`, `primary`, `accent` or `mist` class
 - a `dark:` colour pair
 - a hex value or `rgba(` in a `.tsx` file
 - a `lucide-react` import outside `src/components/ui/Icon.tsx`
-- an emoji
+- an emoji in interface copy
+- a class from Tailwind's default scale, such as `text-sm`, `rounded-lg`, `shadow-lg` or `bg-white`
 
 ### How to apply it
 
 - New and changed UI follows the design system: its principles, copy rules, type scale, spacing, radii, sizes and component behaviour.
 - For colour, use design-system token names and values. Add a missing token to `@theme` as a themed variable; never hard-code a value.
-- Restyling a screen you were not asked to touch is a migration. Do it only when asked, and follow the phases above.
+- Do not restyle a screen you were not asked to touch.
 - The design system assumes every chat is encrypted. Here, group chats are not. Never show the encryption notice or any encryption claim in a group chat.
 - The design system specifies features the app does not have yet: calls, reactions, replies, typing, presence, safety numbers, disappearing messages, mute and pin. Do not add UI for a feature that does not exist.
 - The design system does not specify a modal, popover menu, toggle, form field or settings card. Reuse `src/components/ui/`, `src/components/Field.tsx` and `src/components/settings/SettingsSection.tsx` for those, and merge class names with `cn()` from `src/lib/helpers.ts`.

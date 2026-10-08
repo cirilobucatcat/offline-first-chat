@@ -9,25 +9,20 @@ export function DangerZoneSection() {
   return (
     <>
       <SettingsSection
-        id="danger-zone-heading"
-        title="Danger zone"
-        description="These actions are permanent. Make sure before you continue."
+        id="delete-account-heading"
+        title="Delete account"
+        description="Close your account and delete your profile and encryption key. Chats stay with the people you talked to. This can't be undone."
         tone="danger"
       >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-legacy-ink dark:text-pale-blue">
-              Delete account
-            </p>
-            <p className="mt-0.5 text-sm text-legacy-ink-muted dark:text-mist">
-              Close your account and delete your profile and encryption key. Chats stay with
-              the people you talked to. This can&apos;t be undone.
-            </p>
-          </div>
-          <Button variant="danger" size="sm" icon="trash" onClick={() => setModalOpen(true)}>
-            Delete
-          </Button>
-        </div>
+        {/* Secondary, lifted off the red ground: this only opens the confirmation, which holds the one danger button. */}
+        <Button
+          variant="secondary"
+          className="self-start bg-surface-raised text-danger hover:bg-surface"
+          aria-haspopup="dialog"
+          onClick={() => setModalOpen(true)}
+        >
+          Delete account
+        </Button>
       </SettingsSection>
       {modalOpen && <DeleteAccountModal onClose={() => setModalOpen(false)} />}
     </>

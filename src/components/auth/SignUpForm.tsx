@@ -1,18 +1,14 @@
 import { useState, type SubmitEventHandler } from 'react';
-import { Field } from '../Field';
-import {
-  ArrowRight,
-  Eye,
-  EyeOff,
-  Loader2,
-} from 'lucide-react';
 import { FirebaseError } from 'firebase/app';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useNavigate } from 'react-router';
 import { ensureUserProfile } from '@/lib/users';
 import { auth } from '@/lib/firebase';
-import { COLOR } from '@/lib/constants';
+import { Field } from '../Field';
 import { StrengthMeter } from '../StrengthMeter';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
+import { Notice } from '../ui/Notice';
 
 export default function SignUpForm() {
   const [name, setName] = useState('');
@@ -21,20 +17,25 @@ export default function SignUpForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
+  // Set by a submit, so an empty confirm field is reported too.
+  const [mismatchReported, setMismatchReported] = useState(false);
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const passwordsMismatch = password !== confirmPassword;
+  const showMismatch = passwordsMismatch && (mismatchReported || confirmPassword.length > 0);
+
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      setLoading(false);
+    if (passwordsMismatch) {
+      setMismatchReported(true);
       return;
     }
+
+    setLoading(true);
 
     try {
       const { user } = await createUserWithEmailAndPassword(
@@ -59,6 +60,8 @@ export default function SignUpForm() {
         setError('That email is already registered.');
       } else if (code === 'auth/weak-password') {
         setError('Password should be at least 6 characters.');
+      } else if (code === 'auth/network-request-failed') {
+        setError("Couldn't reach WeakChat. Check your connection and try again.");
       } else {
         setError('Something went wrong. Try again.');
       }
@@ -68,12 +71,7 @@ export default function SignUpForm() {
   };
 
   return (
-    <form className='flex flex-col gap-y-4' onSubmit={handleSubmit}>
-      {error && (
-        <div className='mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm'>
-          {error}
-        </div>
-      )}
+    <form className='flex flex-col gap-4' onSubmit={handleSubmit}>
       <Field
         id='name'
         label='Full name'
@@ -90,6 +88,7 @@ export default function SignUpForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder='you@example.com'
+        autoComplete='email'
       />
 
       <div>
@@ -100,20 +99,16 @@ export default function SignUpForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder='••••••••'
+          autoComplete='new-password'
           rightSlot={
-            <button
-              type='button'
+            <IconButton
+              icon={showPassword ? 'eye-off' : 'eye'}
+              label='Show password'
+              aria-pressed={showPassword}
+              size='sm'
+              className='absolute right-1'
               onClick={() => setShowPassword((s) => !s)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className='absolute right-3.5 rounded-md p-1'
-              style={{ color: 'rgba(15,48,64,0.5)' }}
-            >
-              {showPassword ? (
-                <EyeOff className='w-4 h-4' />
-              ) : (
-                <Eye className='w-4 h-4' />
-              )}
-            </button>
+            />
           }
         />
         <StrengthMeter password={password} />
@@ -127,47 +122,25 @@ export default function SignUpForm() {
         onChange={(e) => setConfirmPassword(e.target.value)}
         placeholder='••••••••'
         autoComplete='new-password'
+        error={showMismatch && "Passwords don't match."}
         rightSlot={
-          <button
-            type='button'
+          <IconButton
+            icon={showConfirm ? 'eye-off' : 'eye'}
+            label='Show password confirmation'
+            aria-pressed={showConfirm}
+            size='sm'
+            className='absolute right-1'
             onClick={() => setShowConfirm((s) => !s)}
-            aria-label={showConfirm ? 'Hide password' : 'Show password'}
-            className='absolute right-3.5 rounded-md p-1'
-            style={{ color: 'rgba(15,48,64,0.5)' }}
-          >
-            {showConfirm ? (
-              <EyeOff className='w-4 h-4' />
-            ) : (
-              <Eye className='w-4 h-4' />
-            )}
-          </button>
+          />
         }
       />
 
-      <button
-        type='submit'
-        disabled={isLoading}
-        aria-busy={isLoading}
-        className='btn-primary w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 mt-7'
-        style={{
-          backgroundColor: COLOR.primary,
-          color: COLOR.paleBlue,
-          opacity: isLoading ? 0.75 : 1,
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-        }}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className='w-4 h-4 animate-spin' aria-hidden='true' />
-            Creating account…
-          </>
-        ) : (
-          <>
-            Sign Up
-            <ArrowRight className='w-4 h-4' />
-          </>
-        )}
-      </button>
+      {error && <Notice tone='danger'>{error}</Notice>}
+
+      {/* Never held for being offline: the attempt reports what it could not reach. */}
+      <Button type='submit' block isLoading={isLoading} className='mt-2'>
+        {isLoading ? 'Creating account…' : 'Create account'}
+      </Button>
     </form>
   );
 }

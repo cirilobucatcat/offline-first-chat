@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { Notice } from '@/components/ui/Notice';
 import { Field } from '@/components/Field';
 import { useAuth } from '@/context/AuthContext';
 import { deleteAccount } from '@/lib/account';
@@ -95,12 +95,7 @@ export function DeleteAccountModal({ onClose }: DeleteAccountModalProps) {
           autoComplete='current-password'
         />
 
-        {error && (
-          <p role='alert' className='flex items-start gap-2 rounded-md bg-danger-soft px-3 py-2 text-footnote text-danger'>
-            <Icon name='alert' size={16} className='mt-px' />
-            {error}
-          </p>
-        )}
+        {error && <Notice tone='danger'>{error}</Notice>}
       </form>
     </Modal>
   );

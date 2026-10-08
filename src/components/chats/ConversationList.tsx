@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   DIRECT_MESSAGE_PREVIEW,
@@ -27,6 +27,8 @@ interface ConversationListProps {
   onStartConversation: (profile: UserProfile) => void;
   onOpenNewGroup: () => void;
   mobileHidden?: boolean;
+  /** The list pane, so focus can come back to it from the thread. */
+  paneRef?: Ref<HTMLElement>;
 }
 
 export function ConversationList({
@@ -36,6 +38,7 @@ export function ConversationList({
   onStartConversation,
   onOpenNewGroup,
   mobileHidden = false,
+  paneRef,
 }: ConversationListProps) {
   const { user } = useAuth();
   const { timestampFormat } = useChatPreferences();
@@ -89,9 +92,11 @@ export function ConversationList({
 
   return (
     <aside
+      ref={paneRef}
+      tabIndex={-1}
       className={cn(
         mobileHidden ? 'hidden' : 'flex',
-        'w-full shrink-0 flex-col bg-surface md:flex md:max-w-100 md:border-r md:border-line',
+        'w-full shrink-0 flex-col bg-surface outline-none md:flex md:max-w-100 md:border-r md:border-line',
       )}
       aria-label="Chat list"
     >
@@ -150,6 +155,7 @@ export function ConversationList({
                     : undefined
                 }
                 selected={c.id === activeConversationId}
+                chatId={c.id}
                 onClick={() => onSelect(c.id)}
               />
             );
@@ -173,7 +179,7 @@ export function ConversationList({
         )}
 
         {trimmedQuery && !searching && filteredConversations.length === 0 && userResults.length === 0 && (
-          <p className="px-4 py-6 text-center text-subhead text-ink-muted">No results</p>
+          <p role="status" className="px-4 py-6 text-center text-subhead text-ink-muted">No results</p>
         )}
       </nav>
       <ProfileBar />

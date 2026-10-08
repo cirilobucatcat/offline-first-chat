@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import {
   sendMessage,
   markConversationRead,
@@ -20,6 +20,7 @@ import { useMessages } from '@/hooks/useMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePeerKeyStatus } from '@/hooks/usePeerKeyStatus';
 import { Icon } from '../ui/Icon';
+import { Notice } from '../ui/Notice';
 import { Popover, PopoverItem } from '../ui/Popover';
 import { useMyIdentityKey } from '@/context/IdentityContext';
 import { useChatPreferences } from '@/context/ChatPreferencesContext';
@@ -34,14 +35,16 @@ interface MessageAreaProps {
   onAddPeople: (conversation: Conversation) => void;
   onCreateGroupWithUser: (participant: ParticipantSeed) => void;
   mobileHidden?: boolean;
+  /** The thread pane, so focus can move to it when a chat opens. */
+  paneRef?: Ref<HTMLElement>;
 }
 
-export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWithUser, mobileHidden = false }: MessageAreaProps) {
+export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWithUser, mobileHidden = false, paneRef }: MessageAreaProps) {
   const { user } = useAuth();
   const { privateKey } = useMyIdentityKey();
   const { timestampFormat, readReceipts } = useChatPreferences();
   const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
-  const { messages } = useMessages(conversation?.id ?? null, other?.uid ?? null);
+  const { messages, loading } = useMessages(conversation?.id ?? null, other?.uid ?? null);
   const networkStatus = useNetworkStatus();
   // `other` is null in a group, so groups never subscribe.
   const peerKeyStatus = usePeerKeyStatus(other?.uid ?? null);
@@ -63,6 +66,43 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
+
+  // Screen readers hear a message that arrives while the chat is open. The history
+  // that loads with the chat is not read out, and neither are your own messages.
+  const liveRef = useRef<HTMLParagraphElement>(null);
+  const announced = useRef<{ conversationId: string | null; lastId: string | null; primed: boolean }>({
+    conversationId: null,
+    lastId: null,
+    primed: false,
+  });
+  const lastMessage = messages[messages.length - 1];
+  const lastId = lastMessage?.id ?? null;
+  const lastText = lastMessage?.displayText ?? '';
+  const lastSenderId = lastMessage?.senderId ?? null;
+  const lastSenderName = (lastSenderId && conversation?.participantInfo[lastSenderId]?.name) || 'Unknown';
+  useEffect(() => {
+    const live = liveRef.current;
+    if (!live) return;
+    if (loading || announced.current.conversationId !== conversationId) {
+      announced.current = { conversationId, lastId: null, primed: false };
+      live.textContent = '';
+      if (loading) return;
+    }
+    if (!announced.current.primed) {
+      announced.current.lastId = lastId;
+      announced.current.primed = true;
+      return;
+    }
+    if (!lastId || lastId === announced.current.lastId) return;
+    if (lastSenderId === myUid) {
+      announced.current.lastId = lastId;
+      return;
+    }
+    // An encrypted message has no text until it is decrypted; wait for it.
+    if (!lastText) return;
+    announced.current.lastId = lastId;
+    live.textContent = `${lastSenderName}: ${lastText}`;
+  }, [conversationId, loading, lastId, lastText, lastSenderId, lastSenderName, myUid]);
 
   // Held only for a missing key, which no amount of waiting on this device fixes. Never for being offline.
   const sendHeld = peerKeyStatus === 'missing';
@@ -92,7 +132,11 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
 
   if (!conversation) {
     return (
-      <main className={cn(mobileHidden ? 'hidden' : 'flex', 'flex-1 items-center justify-center bg-canvas px-4 md:flex')}>
+      <main
+        ref={paneRef}
+        tabIndex={-1}
+        className={cn(mobileHidden ? 'hidden' : 'flex', 'flex-1 items-center justify-center bg-canvas px-4 outline-none md:flex')}
+      >
         <p className='text-center text-body text-ink-muted'>Select a chat to start messaging.</p>
       </main>
     );
@@ -108,15 +152,16 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
       {noKeyNotice}
     </p>
   ) : sendErrorKind ? (
-    <p role='alert' className='flex items-start gap-2 bg-danger-soft px-4 py-2 text-footnote text-danger'>
-      <Icon name='alert' size={16} className='mt-px' />
+    <Notice tone='danger' className='rounded-none px-4'>
       {sendErrorKind === 'no-key' ? noKeyNotice : 'Message not sent. Try again.'}
-    </p>
+    </Notice>
   ) : undefined;
 
   return (
     <main
-      className={cn(mobileHidden ? 'hidden' : 'flex', 'min-w-0 flex-1 flex-col bg-canvas md:flex')}
+      ref={paneRef}
+      tabIndex={-1}
+      className={cn(mobileHidden ? 'hidden' : 'flex', 'min-w-0 flex-1 flex-col bg-canvas outline-none md:flex')}
       aria-label={`Conversation with ${title}`}
     >
       <ChatHeader
@@ -142,7 +187,13 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         }
       />
 
-      <div className='wc-scroll flex-1 overflow-y-auto px-3 pb-3'>
+      {/* Focusable, so the thread can be scrolled from the keyboard. */}
+      <div
+        tabIndex={0}
+        role='region'
+        aria-label='Messages'
+        className='wc-scroll focus-ring-inset flex-1 overflow-y-auto px-3 pb-3'
+      >
         {/* Said once, at the top. Groups are not encrypted, so they say that instead. */}
         {conversation.isGroup ? (
           <SystemNotice kind='info'>Messages in this group are not end-to-end encrypted.</SystemNotice>
@@ -167,6 +218,8 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
                     direction={mine ? 'out' : 'in'}
                     position={position}
                     time={m.createdAt ? formatMessageTime(m.createdAt, timestampFormat === '12h') : undefined}
+                    dateTime={m.createdAt?.toDate().toISOString()}
+                    speaker={mine ? 'You' : senderName}
                     status={
                       mine
                         ? getDeliveryStatus({
@@ -189,6 +242,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         ))}
         <div ref={bottomRef} />
       </div>
+      <p ref={liveRef} aria-live='polite' className='sr-only' />
 
       <Composer
         value={draft}

@@ -18,6 +18,8 @@ interface ChatListItemProps {
   /** Delivery state of your own last message. Leave out when the last message is theirs. */
   status?: Delivery;
   selected?: boolean;
+  /** The conversation id, so the row can be found again to give it focus. */
+  chatId?: string;
   onClick?: () => void;
   className?: string;
 }
@@ -32,6 +34,7 @@ export function ChatListItem({
   unread = 0,
   status,
   selected = false,
+  chatId,
   onClick,
   className,
 }: ChatListItemProps) {
@@ -41,6 +44,7 @@ export function ChatListItem({
         type="button"
         onClick={onClick}
         aria-current={selected ? 'true' : undefined}
+        data-chat-id={chatId}
         className={cn(
           'focus-ring-inset flex h-row w-full cursor-pointer items-center gap-3 pl-4 text-left transition-colors',
           selected ? 'bg-brand-soft' : 'bg-surface hover:bg-surface-fill',

@@ -4,9 +4,9 @@ import type { ParticipantSeed } from '@/lib/chat';
 import { Avatar } from '../Avatar';
 import { Field } from '../Field';
 import { Button } from '../ui/Button';
-import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 import { Modal } from '../ui/Modal';
+import { Notice } from '../ui/Notice';
 import { SearchField } from '../ui/SearchField';
 import { PersonRow } from './PersonRow';
 
@@ -69,12 +69,15 @@ export function NewGroupModal({
     };
   }, [trimmedQuery, currentUid]);
 
+  // Both take away the control that was pressed, so focus goes back to the search field.
   function select(u: UserProfile) {
     setSelected((prev) => [...prev, { uid: u.uid, name: u.name, initials: u.initials }]);
+    searchInputRef.current?.focus();
   }
 
   function removeSelected(uid: string) {
     setSelected((prev) => prev.filter((p) => p.uid !== uid));
+    searchInputRef.current?.focus();
   }
 
   const minMembers = mode === 'create' ? 2 : 1;
@@ -113,6 +116,10 @@ export function NewGroupModal({
           </ul>
         )}
 
+        <p role="status" className="sr-only">
+          {selected.length > 0 && `${selected.length} ${selected.length === 1 ? 'person' : 'people'} selected`}
+        </p>
+
         <SearchField ref={searchInputRef} label="Search people to add" value={query} onChange={setQuery} />
       </div>
 
@@ -123,7 +130,7 @@ export function NewGroupModal({
           </p>
         )}
         {!searching && trimmedQuery && results.length === 0 && (
-          <p className="px-5 py-3 text-subhead text-ink-muted">No people found</p>
+          <p role="status" className="px-5 py-3 text-subhead text-ink-muted">No people found</p>
         )}
         <ul>
           {results.map((u) => (
@@ -141,10 +148,9 @@ export function NewGroupModal({
       </div>
 
       {error && (
-        <p role="alert" className="flex shrink-0 items-start gap-2 bg-danger-soft px-5 py-2 text-footnote text-danger">
-          <Icon name="alert" size={16} className="mt-px" />
+        <Notice tone="danger" className="shrink-0 rounded-none px-5">
           {error}
-        </p>
+        </Notice>
       )}
     </Modal>
   );

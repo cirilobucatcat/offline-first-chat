@@ -1,11 +1,12 @@
-import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
-import { Field } from "../Field";
 import { useState, type SubmitEventHandler } from "react";
 import { useNavigate } from "react-router";
 import { FirebaseError } from "firebase/app";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { COLOR } from "@/lib/constants";
+import { Field } from "../Field";
+import { Button } from "../ui/Button";
+import { IconButton } from "../ui/IconButton";
+import { Notice } from "../ui/Notice";
 
 export default function SignInForm() {
 
@@ -30,6 +31,8 @@ export default function SignInForm() {
         setError('Wrong email or password.');
       } else if (code === 'auth/too-many-requests') {
         setError('Too many failed attempts. Try again later.');
+      } else if (code === 'auth/network-request-failed') {
+        setError("Couldn't reach WeakChat. Check your connection and try again.");
       } else {
         setError('Something went wrong. Try again.');
       }
@@ -39,12 +42,7 @@ export default function SignInForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Field
         id="email"
         label="Email address"
@@ -55,52 +53,32 @@ export default function SignInForm() {
         autoComplete="email"
       />
 
-      <div>
-        <Field
-          id="password"
-          label="Password"
-          type={showPassword ? "text" : "password"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
-          autoComplete="current-password"
-          rightSlot={
-            <button
-              type="button"
-              onClick={() => setShowPassword((s) => !s)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-3.5 rounded-md p-1"
-              style={{ color: "rgba(15,48,64,0.5)" }}
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          }
-        />
-      </div>
+      <Field
+        id="password"
+        label="Password"
+        type={showPassword ? "text" : "password"}
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="••••••••"
+        autoComplete="current-password"
+        rightSlot={
+          <IconButton
+            icon={showPassword ? "eye-off" : "eye"}
+            label="Show password"
+            aria-pressed={showPassword}
+            size="sm"
+            className="absolute right-1"
+            onClick={() => setShowPassword((s) => !s)}
+          />
+        }
+      />
 
-      <button
-        type="submit"
-        disabled={isLoading}
-        aria-busy={isLoading}
-        className="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 mt-7"
-        style={{
-          backgroundColor: COLOR.primary,
-          color: COLOR.paleBlue,
-          opacity: isLoading ? 0.75 : 1,
-          cursor: isLoading ? "not-allowed" : "pointer",
-        }}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-            Signing in…
-          </>
-        ) : (
-          <>
-            Sign In
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
-    </form>)
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      {/* Never held for being offline: the attempt reports what it could not reach. */}
+      <Button type="submit" block isLoading={isLoading} className="mt-2">
+        {isLoading ? "Signing in…" : "Sign in"}
+      </Button>
+    </form>
+  )
 }

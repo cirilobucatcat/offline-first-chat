@@ -4,7 +4,7 @@ import { cn } from '@/lib/helpers';
 import { Icon, type IconName } from './Icon';
 
 const iconButtonVariants = cva(
-  'focus-ring inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-45',
+  'focus-ring inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full outline outline-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-45',
   {
     variants: {
       variant: {
@@ -14,8 +14,8 @@ const iconButtonVariants = cva(
       },
       size: {
         md: 'size-hit',
-        // Only inside a field.
-        sm: 'size-9',
+        // Only inside a field. The ::before keeps the touch target at 44px.
+        sm: 'relative size-9 before:absolute before:-inset-1',
       },
     },
     defaultVariants: {
