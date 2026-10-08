@@ -8,7 +8,6 @@ import Chat from './pages/Chats';
 import NotFound from './pages/NotFound';
 import Auth from './pages/Auth';
 import { SettingsPage } from './pages/Settings';
-import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { PwaUpdatePrompt } from './components/PwaUpdatePrompt';
 import { ThemeProvider } from './context/ThemeContext';
 import { ChatPreferencesProvider } from './context/ChatPreferencesContext';
@@ -50,7 +49,6 @@ createRoot(document.getElementById('root')!).render(
       <AppearanceProvider>
         <ThemeProvider>
           <AuthProvider>
-            <NetworkStatusBanner />
             <PwaUpdatePrompt />
             <RouterProvider router={router} />
           </AuthProvider>

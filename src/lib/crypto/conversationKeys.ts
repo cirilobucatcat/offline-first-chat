@@ -106,11 +106,11 @@ export async function decryptMessageForDisplay(
     peerUid: string
 ): Promise<string> {
     const key = await getConversationKey(conversationId, myPrivateKey, peerUid);
-    if (!key) return '🔒 Unable to decrypt — sender key unavailable';
+    if (!key) return "Unable to decrypt. The sender's key is unavailable.";
 
     const associatedData = `${conversationId}:${message.senderId}`;
     const plaintext = await decryptMessageText(key, message.ciphertext, message.iv, associatedData);
-    return plaintext ?? '🔒 Unable to decrypt this message';
+    return plaintext ?? 'Unable to decrypt this message.';
 }
 
 /** Clears cached keys — call on sign-out so a different account signing in on the same tab doesn't inherit them. */

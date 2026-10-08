@@ -8,11 +8,9 @@ import {
 } from 'react';
 
 export type TextSize = 'sm' | 'md' | 'lg';
-export type MessageDensity = 'compact' | 'comfortable';
 
 const TEXT_SIZE_KEY = 'weakchat:textSize';
 const REDUCE_MOTION_KEY = 'weakchat:reduceMotion';
-const MESSAGE_DENSITY_KEY = 'weakchat:messageDensity';
 
 function readTextSize(): TextSize {
     try {
@@ -37,23 +35,11 @@ function readReduceMotion(): boolean {
     }
 }
 
-function readMessageDensity(): MessageDensity {
-    try {
-        const stored = localStorage.getItem(MESSAGE_DENSITY_KEY);
-        if (stored === 'compact' || stored === 'comfortable') return stored;
-    } catch {
-        // ignore
-    }
-    return 'comfortable';
-}
-
 interface AppearanceContextValue {
     textSize: TextSize;
     setTextSize: (size: TextSize) => void;
     reduceMotion: boolean;
     setReduceMotion: (value: boolean) => void;
-    messageDensity: MessageDensity;
-    setMessageDensity: (density: MessageDensity) => void;
 }
 
 const AppearanceContext = createContext<AppearanceContextValue | null>(null);
@@ -61,7 +47,6 @@ const AppearanceContext = createContext<AppearanceContextValue | null>(null);
 export function AppearanceProvider({ children }: { children: ReactNode }) {
     const [textSize, setTextSizeState] = useState<TextSize>(readTextSize);
     const [reduceMotion, setReduceMotionState] = useState<boolean>(readReduceMotion);
-    const [messageDensity, setMessageDensityState] = useState<MessageDensity>(readMessageDensity);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -92,18 +77,9 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    const setMessageDensity = useCallback((density: MessageDensity) => {
-        setMessageDensityState(density);
-        try {
-            localStorage.setItem(MESSAGE_DENSITY_KEY, density);
-        } catch {
-            // same as above
-        }
-    }, []);
-
     return (
         <AppearanceContext.Provider
-            value={{ textSize, setTextSize, reduceMotion, setReduceMotion, messageDensity, setMessageDensity }}
+            value={{ textSize, setTextSize, reduceMotion, setReduceMotion }}
         >
             {children}
         </AppearanceContext.Provider>

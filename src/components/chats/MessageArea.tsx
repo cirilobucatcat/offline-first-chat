@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Lock, ChevronLeft, Send, Check, CheckCheck, Clock } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
   sendMessage,
   markConversationRead,
   isMessageReadByAll,
   formatMessageTime,
+  getDeliveryStatus,
   groupMessagesByDay,
+  groupMessagesIntoRuns,
   getConversationTitle,
   getOtherParticipant,
   PeerKeyMissingError,
   type ParticipantSeed,
 } from '@/lib/chat';
+import { cn } from '@/lib/helpers';
 import type { Conversation } from '@/types/chats';
 import { Avatar } from '../Avatar';
 import { useAuth } from '@/context/AuthContext';
@@ -21,7 +23,10 @@ import { Icon } from '../ui/Icon';
 import { Popover, PopoverItem } from '../ui/Popover';
 import { useMyIdentityKey } from '@/context/IdentityContext';
 import { useChatPreferences } from '@/context/ChatPreferencesContext';
-import { useAppearance } from '@/context/AppearanceContext';
+import { ChatHeader } from './ChatHeader';
+import { Composer } from './Composer';
+import { MessageBubble } from './MessageBubble';
+import { SystemNotice } from './SystemNotice';
 
 interface MessageAreaProps {
   conversation: Conversation | null;
@@ -35,7 +40,6 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const { user } = useAuth();
   const { privateKey } = useMyIdentityKey();
   const { timestampFormat, readReceipts } = useChatPreferences();
-  const { messageDensity } = useAppearance();
   const other = conversation && user ? getOtherParticipant(conversation, user.uid) : null;
   const { messages } = useMessages(conversation?.id ?? null, other?.uid ?? null);
   const networkStatus = useNetworkStatus();
@@ -65,8 +69,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const sendErrorKind = sendError && sendError.conversationId === conversationId ? sendError.kind : null;
   const noKeyNotice = `${title} hasn't set up encryption yet. You can send messages once they have.`;
 
-  async function handleSend(e: FormEvent) {
-    e.preventDefault();
+  async function handleSend() {
     if (!conversation || !user || !draft.trim() || sendHeld) return;
     const text = draft;
     setDraft('');
@@ -89,140 +92,115 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
 
   if (!conversation) {
     return (
-      <main className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-1 items-center justify-center bg-pale-blue dark:bg-legacy-ink`}>
-        <p className='text-muted dark:text-mist'>Select a conversation to start chatting</p>
+      <main className={cn(mobileHidden ? 'hidden' : 'flex', 'flex-1 items-center justify-center bg-canvas px-4 md:flex')}>
+        <p className='text-center text-body text-ink-muted'>Select a chat to start messaging.</p>
       </main>
     );
   }
 
-  const groups = groupMessagesByDay(messages);
-  const bubblePadding = messageDensity === 'compact' ? 'px-3.5 py-2' : 'px-4 py-2.5';
-  const rowMargin = messageDensity === 'compact' ? 'mb-1' : 'mb-2';
+  const offline = networkStatus === 'offline';
+  const memberCount = conversation.participants.length;
+  const days = groupMessagesByDay(messages);
+
+  const composerNotice = sendHeld ? (
+    <p role='status' className='flex items-start gap-2 px-4 pt-2 text-footnote text-ink-muted'>
+      <Icon name='info' size={16} className='mt-px' />
+      {noKeyNotice}
+    </p>
+  ) : sendErrorKind ? (
+    <p role='alert' className='flex items-start gap-2 bg-danger-soft px-4 py-2 text-footnote text-danger'>
+      <Icon name='alert' size={16} className='mt-px' />
+      {sendErrorKind === 'no-key' ? noKeyNotice : 'Message not sent. Try again.'}
+    </p>
+  ) : undefined;
 
   return (
-    <main className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-col flex-1 min-w-0 bg-pale-blue dark:bg-legacy-ink`} aria-label={`Conversation with ${title}`}>
-      <header className='flex items-center justify-between px-4 md:px-6 py-3.5 border-b border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface'>
-        <div className='flex items-center gap-3 min-w-0'>
-          <button type='button' onClick={onBack} aria-label='Back to conversation list' className='wc-icon-btn wc-focus md:hidden rounded-full p-1.5 -ml-1.5'>
-            <ChevronLeft size={22} aria-hidden='true' />
-          </button>
-          <Avatar name={title} id={other?.uid ?? conversation.id} />
-          <div className='min-w-0'>
-            <h2 className='font-semibold truncate leading-tight text-legacy-ink dark:text-pale-blue'>{title}</h2>
-            <p className='text-xs flex items-center gap-1 text-muted dark:text-mist'>
-              {!conversation.isGroup && <Lock size={11} aria-hidden='true' />}
-              {conversation.isGroup ? 'Synced offline' : 'Encrypted · synced offline'}
-            </p>
-          </div>
-        </div>
-
-        <Popover icon='more' label='Conversation options'>
-          {conversation.isGroup ? (
-            <PopoverItem icon='user-plus' onClick={() => onAddPeople(conversation)}>
-              Add people
-            </PopoverItem>
-          ) : (
-            other && (
-              <PopoverItem icon='users' onClick={() => onCreateGroupWithUser(other)}>
-                Create group with {other.name.split(' ')[0]}
+    <main
+      className={cn(mobileHidden ? 'hidden' : 'flex', 'min-w-0 flex-1 flex-col bg-canvas md:flex')}
+      aria-label={`Conversation with ${title}`}
+    >
+      <ChatHeader
+        name={title}
+        id={other?.uid ?? conversation.id}
+        subtitle={conversation.isGroup ? `${memberCount} ${memberCount === 1 ? 'member' : 'members'}` : undefined}
+        connection={networkStatus}
+        onBack={onBack}
+        actions={
+          <Popover icon='more' label='Chat options'>
+            {conversation.isGroup ? (
+              <PopoverItem icon='user-plus' onClick={() => onAddPeople(conversation)}>
+                Add people
               </PopoverItem>
-            )
-          )}
-        </Popover>
-      </header>
+            ) : (
+              other && (
+                <PopoverItem icon='users' onClick={() => onCreateGroupWithUser(other)}>
+                  Create group with {other.name.split(' ')[0]}
+                </PopoverItem>
+              )
+            )}
+          </Popover>
+        }
+      />
 
-      <div className='flex-1 overflow-y-auto wc-scroll px-4 md:px-10 py-5'>
-        {messages.length === 0 && <p className='text-sm text-center mt-8 text-muted dark:text-mist'>Say hello 👋</p>}
-        {groups.map((group, gi) => (
-          <div key={`${group.label}-${gi}`}>
-            <div className='flex justify-center py-2'>
-              <span className='text-xs px-3 py-1 rounded-full font-medium bg-white dark:bg-legacy-surface text-muted dark:text-mist'>{group.label}</span>
-            </div>
-            {group.items.map((m) => {
-              const mine = m.senderId === user?.uid;
-              const read = mine && isMessageReadByAll(conversation, m.senderId, m);
-              const senderName = conversation.isGroup && !mine ? conversation.participantInfo[m.senderId]?.name : undefined;
-              const queued = mine && !m.createdAt && networkStatus === 'offline';
-              return (
-                <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'} ${rowMargin}`}>
-                  <div style={{ maxWidth: '72%' }}>
-                    {senderName && (
-                      <span className='text-xs font-medium block mb-1 ml-1 text-primary dark:text-accent'>
-                        {senderName}
-                      </span>
-                    )}
-                    <div
-                      className={`${bubblePadding} ${mine ? 'bg-primary dark:bg-accent text-white dark:text-legacy-ink' : 'bg-white dark:bg-legacy-surface text-legacy-ink dark:text-pale-blue'}`}
-                      style={{
-                        borderRadius: 18,
-                        borderBottomRightRadius: mine ? 4 : 18,
-                        borderBottomLeftRadius: mine ? 18 : 4,
-                      }}
-                    >
-                      <p className='text-sm leading-relaxed' style={{ wordBreak: 'break-word' }}>{m.displayText}</p>
-                      <div className='flex items-center justify-end gap-1 mt-1'>
-                        <span className={`text-xs ${mine ? 'text-pale-blue dark:text-legacy-ink/80' : 'text-muted dark:text-mist'}`}>
-                          {m.createdAt ? formatMessageTime(m.createdAt, timestampFormat === '12h') : 'Sending…'}
-                        </span>
-                        {mine && (read
-                          ? <CheckCheck size={13} aria-hidden='true' className='text-pale-blue dark:text-legacy-ink/80' />
-                          : <Check size={13} aria-hidden='true' className='text-pale-blue dark:text-legacy-ink/80' />
-                        )}
-                        {mine && <span className='sr-only'>{read ? 'Read' : 'Delivered'}</span>}
-                      </div>
-                    </div>
-                    {queued && (
-                      <div className='flex items-center justify-end gap-1 mt-1 mr-1'>
-                        <Clock size={11} aria-hidden='true' className='text-muted dark:text-mist' />
-                        <span className='text-xs text-muted dark:text-mist'>
-                          No connection — will send once you're back online
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+      <div className='wc-scroll flex-1 overflow-y-auto px-3 pb-3'>
+        {/* Said once, at the top. Groups are not encrypted, so they say that instead. */}
+        {conversation.isGroup ? (
+          <SystemNotice kind='info'>Messages in this group are not end-to-end encrypted.</SystemNotice>
+        ) : (
+          <SystemNotice kind='encryption'>
+            Messages in this chat stay between you and the people in it. Not even WeakChat can read them.
+          </SystemNotice>
+        )}
+        {days.map((day, di) => (
+          <div key={`${day.label}-${di}`}>
+            <SystemNotice kind='date'>{day.label}</SystemNotice>
+            {/* Bubbles stay direct children of the day, because a bubble's spacing depends on its siblings. */}
+            {groupMessagesIntoRuns(day.items).flatMap((run) =>
+              run.map((m, i) => {
+                const mine = m.senderId === user?.uid;
+                const position = run.length === 1 ? 'single' : i === 0 ? 'first' : i === run.length - 1 ? 'last' : 'middle';
+                const groupIncoming = conversation.isGroup && !mine;
+                const senderName = conversation.participantInfo[m.senderId]?.name ?? 'Unknown';
+                return (
+                  <MessageBubble
+                    key={m.id}
+                    direction={mine ? 'out' : 'in'}
+                    position={position}
+                    time={m.createdAt ? formatMessageTime(m.createdAt, timestampFormat === '12h') : undefined}
+                    status={
+                      mine
+                        ? getDeliveryStatus({
+                            pending: !m.createdAt,
+                            read: isMessageReadByAll(conversation, m.senderId, m),
+                            offline,
+                          })
+                        : undefined
+                    }
+                    sender={groupIncoming ? senderName : undefined}
+                    avatar={groupIncoming ? <Avatar name={senderName} id={m.senderId} size='sm' /> : undefined}
+                    indent={groupIncoming}
+                  >
+                    {m.displayText}
+                  </MessageBubble>
+                );
+              }),
+            )}
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-      {sendHeld && (
-        <p role='status' className='flex items-start gap-2 border-t border-line bg-surface px-4 py-2 text-footnote text-ink-muted'>
-          <Icon name='info' size={16} className='mt-px' />
-          {noKeyNotice}
-        </p>
-      )}
-      {!sendHeld && sendErrorKind && (
-        <p role='alert' className='flex items-start gap-2 border-t border-line bg-danger-soft px-4 py-2 text-footnote text-danger'>
-          <Icon name='alert' size={16} className='mt-px' />
-          {sendErrorKind === 'no-key' ? noKeyNotice : 'Message not sent. Try again.'}
-        </p>
-      )}
-
-      <form onSubmit={handleSend} className='flex items-center gap-2 px-3 md:px-4 py-3 border-t border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface'>
-        <label htmlFor='wc-message' className='sr-only'>Type a message</label>
-        <input
-          id='wc-message'
-          type='text'
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setSendError(null);
-          }}
-          placeholder='Type a message'
-          className='wc-focus flex-1 rounded-full py-2.5 px-4 text-sm min-w-0 bg-pale-blue dark:bg-legacy-ink text-legacy-ink dark:text-pale-blue'
-        />
-        <button
-          type='submit'
-          aria-label='Send message'
-          disabled={!draft.trim() || sendHeld}
-          className='wc-focus rounded-full p-2.5 shrink-0 disabled:opacity-40 bg-primary dark:bg-accent text-white dark:text-legacy-ink'
-        >
-          <Send size={18} aria-hidden='true' />
-        </button>
-      </form>
+      <Composer
+        value={draft}
+        onChange={(value) => {
+          setDraft(value);
+          setSendError(null);
+        }}
+        onSend={handleSend}
+        offline={offline}
+        held={sendHeld}
+        notice={composerNotice}
+      />
     </main>
   );
 }

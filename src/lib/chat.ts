@@ -68,6 +68,12 @@ export async function addParticipantsToConversation(
   await updateDoc(doc(db, 'conversations', conversationId), updates);
 }
 
+/**
+ * What the chat list shows for a direct message. The conversation doc is
+ * readable by the server, so the preview is never the plaintext.
+ */
+export const DIRECT_MESSAGE_PREVIEW = 'New message';
+
 export interface SendMessageOptions {
   isGroup: boolean;
   myPrivateKey: CryptoKey;
@@ -136,7 +142,7 @@ export async function sendMessage(
       encrypted: true,
       createdAt: serverTimestamp(),
     });
-    updates.lastMessage = '🔒 New message';
+    updates.lastMessage = DIRECT_MESSAGE_PREVIEW;
   }
 
   batch.update(doc(db, 'conversations', conversationId), updates);
@@ -186,6 +192,24 @@ export function isMessageReadByAll<T extends { createdAt: Timestamp | null | und
   });
 }
 
+/**
+ * Where one of your own messages is. A write the server has not acknowledged
+ * is `queued` with no network and `sending` with one. The app has no delivery
+ * receipt and no failed-write state, so `delivered` and `failed` never come up.
+ */
+export function getDeliveryStatus({
+  pending,
+  read,
+  offline,
+}: {
+  pending: boolean;
+  read: boolean;
+  offline: boolean;
+}): 'queued' | 'sending' | 'sent' | 'read' {
+  if (pending) return offline ? 'queued' : 'sending';
+  return read ? 'read' : 'sent';
+}
+
 export function colorIndexForId(id: string, modulo: number): number {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
@@ -217,11 +241,37 @@ export function formatRelativeTime(timestamp: Timestamp | null | undefined, hour
   if (date.toDateString() === now.toDateString()) {
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12 });
   }
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  // The six days before today read as a weekday; anything older as a date.
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  if (date >= weekStart && date < now) return date.toLocaleDateString([], { weekday: 'short' });
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString([], sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+const RUN_GAP_MS = 5 * 60 * 1000;
+
+/**
+ * Splits messages into runs: consecutive messages from one sender, on the
+ * same day, each within five minutes of the one before. A message the server
+ * has not acknowledged yet has no time, so it counts as sent now.
+ */
+export function groupMessagesIntoRuns<T extends { senderId: string; createdAt: Timestamp | null | undefined }>(
+  messages: T[],
+): T[][] {
+  const runs: T[][] = [];
+  let previous: { senderId: string; at: Date } | null = null;
+  for (const m of messages) {
+    const at = m.createdAt ? m.createdAt.toDate() : new Date();
+    const joins =
+      previous !== null &&
+      previous.senderId === m.senderId &&
+      previous.at.toDateString() === at.toDateString() &&
+      at.getTime() - previous.at.getTime() <= RUN_GAP_MS;
+    if (joins) runs[runs.length - 1].push(m);
+    else runs.push([m]);
+    previous = { senderId: m.senderId, at };
+  }
+  return runs;
 }
 
 export function groupMessagesByDay<T extends { createdAt: Timestamp | null | undefined }>(

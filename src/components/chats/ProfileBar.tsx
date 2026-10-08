@@ -26,11 +26,9 @@ export function ProfileBar() {
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-t border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface shrink-0">
+    <div className="flex h-15 shrink-0 items-center gap-3 border-t border-line bg-surface pr-1 pl-4">
       <Avatar name={name} id={user.uid} />
-      <span className="flex-1 min-w-0 truncate font-medium text-legacy-ink dark:text-pale-blue">
-        {name}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-row-title text-ink">{name}</span>
 
       <Popover icon="settings" label="Settings" placement="top">
         <PopoverItem icon="settings" onClick={() => navigate('/settings')}>

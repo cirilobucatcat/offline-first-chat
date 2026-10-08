@@ -28,8 +28,9 @@ interface ChatHeaderProps {
 export function ChatHeader({ name, id, subtitle, connection = 'online', onBack, actions, className }: ChatHeaderProps) {
   return (
     <header className={cn('flex h-15 shrink-0 items-center gap-2 border-b border-line bg-surface px-1', className)}>
-      {onBack !== false && <IconButton icon="back" label="Back" onClick={onBack} className="text-brand" />}
-      <Avatar name={name} id={id} size="md" className={onBack === false ? 'ml-3' : 'ml-0.5'} />
+      {/* From md up the chat list sits beside the thread, so there is nowhere to go back to. */}
+      {onBack !== false && <IconButton icon="back" label="Back" onClick={onBack} className="text-brand md:hidden" />}
+      <Avatar name={name} id={id} size="md" className={onBack === false ? 'ml-3' : 'ml-0.5 md:ml-3'} />
       <div className="ml-1 flex min-w-0 flex-1 flex-col">
         <h2 className="truncate text-headline text-ink">{name}</h2>
         <p aria-live="polite" className="flex min-h-4.5 items-center gap-1 text-footnote text-ink-muted">

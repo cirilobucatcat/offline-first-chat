@@ -124,7 +124,7 @@ Read it with the Artifact tool before UI work. Start with `project/README.md` (t
 
 ### Migration status
 
-The code predates the design system and is being migrated to it in phases. The foundation and the shared components are in. No screen has moved yet: the chat screens, settings, sign-in and the encryption gate still use the old palette.
+The code predates the design system and is being migrated to it in phases. The foundation, the shared components and the chat screens are in. Settings, sign-in and the encryption gate still use the old palette.
 
 - **Palette.** `@theme` in `src/index.css` holds both palettes. The design-system tokens have their real names. The older palette (`primary` `#0D47A1`, `pale-blue`, `accent`, `mist` and others) stays until the last screen moves. Unmigrated screens switch themes with `dark:` class pairs such as `bg-white dark:bg-legacy-surface`, `text-legacy-ink dark:text-pale-blue` and `bg-primary dark:bg-accent`.
 - **Themed tokens.** Each design-system colour has one name with a light and a dark value. In code that is a CSS variable overridden under `.dark`, so a design-system colour needs one class and no `dark:` pair. Shadows work the same way through the `--elevation-*` variables.
@@ -132,10 +132,12 @@ The code predates the design system and is being migrated to it in phases. The f
 - **Class merging.** `cn()` is configured with the design-system text, radius, shadow, spacing and animation names. Add a new token name there as well as to `@theme`, or `cn()` will drop it when it meets a colour class.
 - **Font loading.** Outfit ships with the app from `@fontsource-variable/outfit`, declared as the family `Outfit` in `src/index.css` and precached by Workbox.
 - **Icons.** `Icon` in `src/components/ui/Icon.tsx` holds the design system's 24 glyphs, plus the glyphs it does not draw (close, settings, eye and others), which come from `lucide-react` at the same stroke. Unmigrated screens still import `lucide-react` directly; new and changed UI must not.
-- **Components.** `Icon`, `IconButton`, `Button`, `Badge` and `Avatar` are in use. `DeliveryStatus`, `MessageBubble`, `SystemNotice`, `Composer`, `ChatListItem`, `ChatHeader` and `ConnectionBanner` are written in `src/components/chats/` but no screen renders them yet. `TypingIndicator` and `SafetyNumber` are not built, because the app has neither feature. The modal, popover, toggle, field and settings card are restyled to the tokens.
-- **Copy and marks.** A lock icon sits on direct chat headers, and interface copy contains emoji. Both go against the design system.
+- **Components.** `Icon`, `IconButton`, `Button`, `Badge`, `Avatar`, `DeliveryStatus`, `MessageBubble`, `SystemNotice`, `Composer`, `ChatListItem`, `ChatHeader` and `ConnectionBanner` are in use. `TypingIndicator` and `SafetyNumber` are not built, because the app has neither feature. The modal, popover, toggle, field and settings card are restyled to the tokens. `SearchField` in `src/components/ui/` and `PersonRow` in `src/components/chats/` are this app's own, for the search input and the people results the design system does not specify.
+- **Chat screens.** `ConversationList`, `MessageArea`, `ProfileBar` and `NewGroupModal` are on tokens. The thread opens with the encryption notice in a direct chat and the not-encrypted notice in a group. The Comfortable / Compact setting is gone. `ConnectionBanner` on the chat list replaced the global `NetworkStatusBanner`, so settings and sign-in show no connection state until their phases; `NetworkStatusBanner.tsx` is unused and goes in phase 5.
+- **Direct-message preview.** `DIRECT_MESSAGE_PREVIEW` in `src/lib/chat.ts` is what `sendMessage` stores and what the chat list renders for any direct chat, whatever string the conversation doc holds.
+- **Copy and marks.** The lock on direct chat headers and the emoji in chat copy are gone. Unmigrated screens have not been checked for emoji.
 - **Done ahead of their phase.** A bug-fix pass removed the stub controls and the overclaiming copy without restyling the screens: the chat list lock line, Attach and Emoji, the profile picture controls, Forgot password, Remember me, and the terms checkbox. The same pass wired `usePeerKeyStatus` and the send-failure alert into `MessageArea`, added sign-out and the expired-code state to `IdentityKeyGate`, and rewrote `DeleteAccountModal` on tokens.
-- **Legacy defects.** `dark:border-hairline-dark` is used in 10 files, but the token is undefined and emits no CSS. The `wc-item`, `wc-icon-btn`, `wc-focus` and `wc-scroll` helper classes hard-code light colours.
+- **Legacy defects.** `dark:border-hairline-dark` is used in 7 files, all in settings, but the token is undefined and emits no CSS. The `wc-item`, `wc-icon-btn`, `wc-focus` and `wc-scroll` helper classes hard-code light colours.
 
 ### Migration phases
 
@@ -145,8 +147,8 @@ The migration lands one phase at a time, and the running app is reviewed between
 |---|---|---|
 | 0. Foundation | Done | Tokens in `@theme`, the `legacy-*` rename, self-hosted Outfit, the `cn()` config, document title and theme colour |
 | 1. Shared components | Done, not yet reviewed in a browser | The components listed under "Components" above |
-| 2. Chat screens | Next | `src/pages/Chats.tsx` and `ConversationList`, `MessageArea`, `ProfileBar`, `NewGroupModal` in `src/components/chats/` |
-| 3. Settings | Pending | `src/pages/Settings.tsx`, `src/components/settings/`, `src/components/JoinDeviceModal.tsx` |
+| 2. Chat screens | Done, not yet reviewed in a browser | `src/pages/Chats.tsx` and `ConversationList`, `MessageArea`, `ProfileBar`, `NewGroupModal` in `src/components/chats/` |
+| 3. Settings | Next | `src/pages/Settings.tsx`, `src/components/settings/`, `src/components/JoinDeviceModal.tsx` |
 | 4. Sign-in, gates, prompts | Pending | `src/pages/Auth.tsx`, `src/components/auth/`, `IdentityKeyGate`, `ProtectedRoutes`, `NotFound`, `PwaUpdatePrompt` |
 | 5. Cleanup | Pending | Remove the old palette and helper classes, close the theme |
 

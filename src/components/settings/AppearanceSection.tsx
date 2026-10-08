@@ -1,6 +1,6 @@
 import { Monitor, Sun, Moon } from 'lucide-react';
 import { useTheme, type ThemePreference } from '@/context/ThemeContext';
-import { useAppearance, type TextSize, type MessageDensity } from '@/context/AppearanceContext';
+import { useAppearance, type TextSize } from '@/context/AppearanceContext';
 import { ToggleRow } from '@/components/ui/ToggleRow';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
@@ -15,11 +15,6 @@ const TEXT_SIZE_OPTIONS: { value: TextSize; label: string }[] = [
     { value: 'lg', label: 'Large' },
 ];
 
-const DENSITY_OPTIONS: { value: MessageDensity; label: string }[] = [
-    { value: 'comfortable', label: 'Comfortable' },
-    { value: 'compact', label: 'Compact' },
-];
-
 function segmentClasses(active: boolean) {
     return `wc-focus flex flex-col items-center justify-center gap-1.5 rounded-xl border px-3 py-3 text-xs font-medium transition-colors ${active
             ? 'border-primary dark:border-accent bg-primary/5 dark:bg-accent/10 text-primary dark:text-accent'
@@ -29,7 +24,7 @@ function segmentClasses(active: boolean) {
 
 export function AppearanceSection() {
     const { preference, setPreference } = useTheme();
-    const { textSize, setTextSize, reduceMotion, setReduceMotion, messageDensity, setMessageDensity } = useAppearance();
+    const { textSize, setTextSize, reduceMotion, setReduceMotion } = useAppearance();
 
     return (
         <section
@@ -61,17 +56,6 @@ export function AppearanceSection() {
                 <div role="radiogroup" aria-label="Text size" className="grid grid-cols-3 gap-2">
                     {TEXT_SIZE_OPTIONS.map(({ value, label }) => (
                         <button key={value} type="button" role="radio" aria-checked={textSize === value} onClick={() => setTextSize(value)} className={segmentClasses(textSize === value)}>
-                            {label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div>
-                <p className="mb-2 text-sm font-medium text-legacy-ink dark:text-pale-blue">Message density</p>
-                <div role="radiogroup" aria-label="Message density" className="grid grid-cols-2 gap-2">
-                    {DENSITY_OPTIONS.map(({ value, label }) => (
-                        <button key={value} type="button" role="radio" aria-checked={messageDensity === value} onClick={() => setMessageDensity(value)} className={segmentClasses(messageDensity === value)}>
                             {label}
                         </button>
                     ))}
