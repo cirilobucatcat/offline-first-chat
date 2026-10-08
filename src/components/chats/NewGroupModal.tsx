@@ -130,7 +130,7 @@ export function NewGroupModal({
               className="flex items-center gap-1.5 rounded-full pl-1 pr-2 py-1 text-xs font-medium"
               style={{ backgroundColor: COLOR.paleBlue, color: COLOR.ink }}
             >
-              <Avatar initials={s.initials} uid={s.uid} size={20} />
+              <Avatar name={s.name} id={s.uid} size="xs" />
               {s.name}
               <button
                 type="button"
@@ -176,7 +176,7 @@ export function NewGroupModal({
                 onClick={() => toggleSelect(u)}
                 className="wc-item wc-focus w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors"
               >
-                <Avatar initials={u.initials} uid={u.uid} />
+                <Avatar name={u.name} id={u.uid} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium" style={{ color: COLOR.ink }}>{u.name}</p>
                   <p className="truncate text-xs" style={{ color: COLOR.muted }}>{u.email}</p>

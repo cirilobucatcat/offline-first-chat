@@ -19,6 +19,9 @@ export interface Conversation {
   createdBy?: string;
 }
 
+/** Where one of your own messages is. `queued` is saved on this device with no network yet. */
+export type Delivery = 'queued' | 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+
 export interface Message {
   id: string;
   senderId: string;

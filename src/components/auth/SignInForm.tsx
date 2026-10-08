@@ -1,8 +1,8 @@
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Field } from "../Field";
-import { Checkbox } from "../Checkbox";
 import { useState, type SubmitEventHandler } from "react";
 import { useNavigate } from "react-router";
+import { FirebaseError } from "firebase/app";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { COLOR } from "@/lib/constants";
@@ -11,7 +11,6 @@ export default function SignInForm() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState('');
@@ -25,10 +24,11 @@ export default function SignInForm() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/chat');
-    } catch (err: any) {
-      if (err.code === 'auth/invalid-credential') {
+    } catch (err) {
+      const code = err instanceof FirebaseError ? err.code : '';
+      if (code === 'auth/invalid-credential') {
         setError('Wrong email or password.');
-      } else if (err.code === 'auth/too-many-requests') {
+      } else if (code === 'auth/too-many-requests') {
         setError('Too many failed attempts. Try again later.');
       } else {
         setError('Something went wrong. Try again.');
@@ -48,7 +48,6 @@ export default function SignInForm() {
       <Field
         id="email"
         label="Email address"
-        icon={Mail}
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
@@ -60,16 +59,6 @@ export default function SignInForm() {
         <Field
           id="password"
           label="Password"
-          labelRight={
-            <button
-              type="button"
-              className="text-sm font-medium hover:underline"
-              style={{ color: COLOR.primary }}
-            >
-              Forgot password?
-            </button>
-          }
-          icon={Lock}
           type={showPassword ? "text" : "password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -88,10 +77,6 @@ export default function SignInForm() {
           }
         />
       </div>
-
-      <Checkbox id="remember" checked={remember} onChange={(e) => setRemember(e.target.checked)}>
-        Remember me on this device
-      </Checkbox>
 
       <button
         type="submit"

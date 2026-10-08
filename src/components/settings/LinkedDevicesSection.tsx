@@ -58,8 +58,8 @@ export function LinkedDevicesSection() {
     <section className='flex flex-col gap-4'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <div>
-          <h3 className='text-base font-semibold text-ink dark:text-pale-blue'>Linked devices</h3>
-          <p className='text-sm text-ink/60 dark:text-pale-blue/60'>
+          <h3 className='text-base font-semibold text-legacy-ink dark:text-pale-blue'>Linked devices</h3>
+          <p className='text-sm text-legacy-ink/60 dark:text-pale-blue/60'>
             Devices signed into your account.
           </p>
         </div>
@@ -74,7 +74,7 @@ export function LinkedDevicesSection() {
       </div>
 
       {isOffline && (
-        <p className='text-xs text-ink/50 dark:text-pale-blue/50'>
+        <p className='text-xs text-legacy-ink/50 dark:text-pale-blue/50'>
           You're offline — linking a new device needs a live connection to pair.
         </p>
       )}
@@ -84,14 +84,14 @@ export function LinkedDevicesSection() {
         aria-busy={!devicesLoaded}
       >
         {!devicesLoaded && (
-          <li className='flex items-center justify-center gap-2 px-4 py-6 text-sm text-ink/50 dark:text-pale-blue/50' role='status' aria-live='polite'>
+          <li className='flex items-center justify-center gap-2 px-4 py-6 text-sm text-legacy-ink/50 dark:text-pale-blue/50' role='status' aria-live='polite'>
             <Loader2 className='h-4 w-4 animate-spin' aria-hidden='true' />
             Loading devices…
           </li>
         )}
 
         {devicesLoaded && sortedDevices.length === 0 && (
-          <li className='px-4 py-6 text-center text-sm text-ink/50 dark:text-pale-blue/50'>
+          <li className='px-4 py-6 text-center text-sm text-legacy-ink/50 dark:text-pale-blue/50'>
             No devices yet.
           </li>
         )}
@@ -102,25 +102,25 @@ export function LinkedDevicesSection() {
               <div className='flex min-w-0 items-center gap-3'>
                 <Monitor className='h-5 w-5 shrink-0 text-primary dark:text-accent' aria-hidden='true' />
                 <div className='min-w-0'>
-                  <p className='truncate text-sm font-medium text-ink dark:text-pale-blue'>
+                  <p className='truncate text-sm font-medium text-legacy-ink dark:text-pale-blue'>
                     {device.label}
                     {device.deviceId === thisDeviceId && (
-                      <span className='ml-2 text-xs font-normal text-ink/50 dark:text-pale-blue/50'>
+                      <span className='ml-2 text-xs font-normal text-legacy-ink/50 dark:text-pale-blue/50'>
                         This device
                       </span>
                     )}
                   </p>
-                  <p className='text-xs text-ink/50 dark:text-pale-blue/50'>
+                  <p className='text-xs text-legacy-ink/50 dark:text-pale-blue/50'>
                     {relativeLastSeen(device.lastSeen)}
                   </p>
                 </div>
               </div>
 
               {device.deviceId === thisDeviceId ? (
-                <span className='shrink-0 text-xs text-ink/40 dark:text-pale-blue/40'>In use</span>
+                <span className='shrink-0 text-xs text-legacy-ink/40 dark:text-pale-blue/40'>In use</span>
               ) : (
                 <Button
-                  variant='dangerGhost'
+                  variant='secondary'
                   size='sm'
                   onClick={() => {
                     setPendingForget(device);
@@ -147,7 +147,7 @@ export function LinkedDevicesSection() {
           }}
         >
           <div className='flex flex-col gap-4 px-5 py-5'>
-            <p className='text-sm text-ink dark:text-pale-blue'>
+            <p className='text-sm text-legacy-ink dark:text-pale-blue'>
               This removes <strong>{pendingForget.label}</strong> from this
               list. It doesn't revoke its access — every linked device holds a
               working copy of your encryption key, and there's no way yet to cut
@@ -156,7 +156,7 @@ export function LinkedDevicesSection() {
             </p>
 
             {removeError && (
-              <p className='text-sm text-danger dark:text-danger-dark' role='alert'>
+              <p className='text-sm text-legacy-danger dark:text-danger-dark' role='alert'>
                 {removeError}
               </p>
             )}
@@ -173,7 +173,7 @@ export function LinkedDevicesSection() {
                 Cancel
               </Button>
               <Button
-                variant='dangerSolid'
+                variant='danger'
                 isLoading={isRemoving}
                 onClick={async () => {
                   if (!user?.uid) return;

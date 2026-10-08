@@ -1,23 +1,14 @@
 import { useState } from 'react';
 import { Lock, LockOpen, KeyRound, ChevronRight, Info } from 'lucide-react';
-import { useIdentityKeys } from '@/hooks/userIdentityKeys';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 
 export function PrivacySecuritySection() {
   const [showInfo, setShowInfo] = useState(false);
-  const keyState = useIdentityKeys();
-
-  const keyStatusText =
-    keyState.phase === 'ready'
-      ? 'Active on this device'
-      : keyState.phase === 'error'
-        ? 'Needs attention — try reloading'
-        : 'Checking…';
 
   return (
     <section
-      className='rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-surface p-5 md:p-6 space-y-5'
+      className='rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface p-5 md:p-6 space-y-5'
       aria-labelledby='privacy-security-heading'
     >
       <div>
@@ -35,7 +26,7 @@ export function PrivacySecuritySection() {
         <div className='flex items-start gap-3 rounded-xl px-4 py-3 border border-hairline dark:border-hairline-dark'>
           <Lock size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-primary dark:text-accent' />
           <div>
-            <p className='text-sm font-medium text-ink dark:text-pale-blue'>Direct messages</p>
+            <p className='text-sm font-medium text-legacy-ink dark:text-pale-blue'>Direct messages</p>
             <p className='text-xs mt-0.5 text-muted dark:text-mist'>
               End-to-end encrypted. Only you and the person you're messaging
               can read them — not even WeakChat can.
@@ -46,7 +37,7 @@ export function PrivacySecuritySection() {
         <div className='flex items-start gap-3 rounded-xl px-4 py-3 border border-hairline dark:border-hairline-dark'>
           <LockOpen size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-muted dark:text-mist' />
           <div>
-            <p className='text-sm font-medium text-ink dark:text-pale-blue'>Group chats</p>
+            <p className='text-sm font-medium text-legacy-ink dark:text-pale-blue'>Group chats</p>
             <p className='text-xs mt-0.5 text-muted dark:text-mist'>
               Not end-to-end encrypted yet. Encrypted groups are planned for
               a future update.
@@ -63,9 +54,10 @@ export function PrivacySecuritySection() {
         <span className='flex min-w-0 items-center gap-3'>
           <KeyRound size={18} aria-hidden='true' className='shrink-0 text-primary dark:text-accent' />
           <span className='min-w-0'>
-            <span className='block text-sm font-medium text-ink dark:text-pale-blue'>Encryption key</span>
-            <span className='block text-xs mt-0.5 text-muted dark:text-mist' aria-live='polite'>
-              {keyStatusText}
+            <span className='block text-sm font-medium text-legacy-ink dark:text-pale-blue'>Encryption key</span>
+            {/* Settings renders inside IdentityKeyGate, so the key is always here. */}
+            <span className='block text-xs mt-0.5 text-muted dark:text-mist'>
+              Active on this device
             </span>
           </span>
         </span>
@@ -74,11 +66,12 @@ export function PrivacySecuritySection() {
 
       <div className='flex gap-3 rounded-xl px-4 py-3 bg-pale-blue dark:bg-accent/10'>
         <Info size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-primary dark:text-accent' />
-        <p className='text-xs text-ink dark:text-pale-blue'>
+        <p className='text-xs text-legacy-ink dark:text-pale-blue'>
           <strong>No recovery yet.</strong> If you lose access to every
           device signed into WeakChat, encrypted message history can't be
           restored. Use Linked devices below to add a second device while
-          you still have this one.
+          you still have this one. Logging out keeps your key on this
+          device.
         </p>
       </div>
 
@@ -98,7 +91,7 @@ export function PrivacySecuritySection() {
               it's dark-aware. Switching this text to dark: colors without
               that guarantee risks light text on a light panel silently
               becoming illegible instead of just staying light-mode. */}
-          <div className='space-y-3 overflow-y-auto px-5 py-4 text-sm text-ink dark:text-pale-blue'>
+          <div className='space-y-3 overflow-y-auto px-5 py-4 text-sm text-legacy-ink dark:text-pale-blue'>
             <p>
               Direct messages are encrypted before they leave your device
               and decrypted only on the recipient's. Our servers only ever
@@ -112,9 +105,14 @@ export function PrivacySecuritySection() {
               detectable.
             </p>
             <p>
-              If we can't verify the other person's key, the message won't
-              fall back to sending unencrypted — it simply won't send until
-              a secure channel is confirmed.
+              If the other person has no encryption key yet, a message is
+              never sent unencrypted instead. It isn't sent until they have
+              one.
+            </p>
+            <p>
+              WeakChat can't yet show you a way to verify a contact's key.
+              Until it can, this protection relies on our servers handing
+              out the right keys.
             </p>
             <p>
               Group chats don't have this yet — every member needs their

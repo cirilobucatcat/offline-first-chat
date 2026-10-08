@@ -20,7 +20,7 @@ export function NetworkStatusBanner() {
       role='status'
       aria-live='polite'
       className={`flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-medium ${
-        isOffline ? 'bg-ink text-pale-blue' : 'bg-primary text-pale-blue'
+        isOffline ? 'bg-legacy-ink text-pale-blue' : 'bg-primary text-pale-blue'
       }`}
     >
       {isOffline ? (

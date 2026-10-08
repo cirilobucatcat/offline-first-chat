@@ -54,7 +54,7 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
         {status === 'done' ? (
           <div className='flex flex-col items-center gap-3 py-4 text-center'>
             <KeyRound className='h-8 w-8 text-primary dark:text-accent' aria-hidden='true' />
-            <p className='text-ink dark:text-pale-blue'>
+            <p className='text-legacy-ink dark:text-pale-blue'>
               Linked. Your other device should unlock automatically within a few
               seconds.
             </p>
@@ -62,7 +62,7 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
           </div>
         ) : (
           <form className='flex flex-col gap-4' onSubmit={handleSubmit}>
-            <p id='link-code-hint' className='text-sm text-ink/70 dark:text-pale-blue/70'>
+            <p id='link-code-hint' className='text-sm text-legacy-ink/70 dark:text-pale-blue/70'>
               Enter the code shown on the device you're signing in on. Codes
               expire after 5 minutes.
             </p>
@@ -77,10 +77,10 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
               autoCapitalize='characters'
               aria-label='Linking code'
               aria-describedby='link-code-hint'
-              className='rounded-lg border border-border dark:border-hairline-dark bg-transparent px-4 py-3 text-center font-mono text-xl tracking-[0.3em] text-ink dark:text-pale-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 dark:focus-visible:ring-accent/35'
+              className='rounded-lg border border-border dark:border-hairline-dark bg-transparent px-4 py-3 text-center font-mono text-xl tracking-[0.3em] text-legacy-ink dark:text-pale-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 dark:focus-visible:ring-accent/35'
             />
             {status === 'error' && (
-              <p role='alert' className='text-sm text-danger dark:text-danger-dark'>
+              <p role='alert' className='text-sm text-legacy-danger dark:text-danger-dark'>
                 {errorMessage}
               </p>
             )}

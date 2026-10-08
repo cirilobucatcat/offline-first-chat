@@ -126,6 +126,8 @@ export interface LinkSession {
   sessionId: string;
   code: string;
   ephemeralKeyPair: CryptoKeyPair;
+  /** Milliseconds since the epoch. The primary device rejects the code after this. */
+  expiresAt: number;
 }
 
 export interface LinkSessionUpdate {
@@ -151,15 +153,16 @@ export async function createLinkSession(uid: string): Promise<LinkSession> {
     ephemeralKeyPair.publicKey,
   );
   const now = Date.now();
+  const expiresAt = now + SESSION_TTL_MS;
 
   await setDoc(linkSessionRef(uid, sessionId), {
     status: 'pending',
     newDeviceEphemeralPublicKey: publicJwk,
     createdAt: Timestamp.fromMillis(now),
-    expiresAt: Timestamp.fromMillis(now + SESSION_TTL_MS),
+    expiresAt: Timestamp.fromMillis(expiresAt),
   });
 
-  return { sessionId, code: sessionId, ephemeralKeyPair };
+  return { sessionId, code: sessionId, ephemeralKeyPair, expiresAt };
 }
 
 /**

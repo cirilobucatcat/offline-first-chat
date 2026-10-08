@@ -5,7 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>offline-first-chat-app</title>
+    <!-- The surface token: #ffffff in light, #111722 in dark (set by the script below). -->
+    <meta name="theme-color" content="#ffffff" />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2"
+    />
+    <title>WeakChat</title>
     <script>
       (function () {
         try {
@@ -14,7 +23,12 @@
             theme === 'dark' ||
             (theme !== 'light' &&
               window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (isDark) document.documentElement.classList.add('dark');
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document
+              .querySelector('meta[name="theme-color"]')
+              .setAttribute('content', '#111722');
+          }
 
           var textSize = localStorage.getItem('weakchat:textSize');
           if (textSize === 'sm' || textSize === 'lg') {

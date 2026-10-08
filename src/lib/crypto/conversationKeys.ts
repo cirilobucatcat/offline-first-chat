@@ -56,6 +56,12 @@ export type PeerKeyStatus = 'checking' | 'ready' | 'missing';
  * getConversationKey (one-time, cached for the session), this stays
  * subscribed so the UI updates the moment the peer finishes key setup — no
  * refresh needed. Returns an unsubscribe function.
+ *
+ * Only the server can say a key is 'missing'. A snapshot served from the
+ * local cache may be stale, and offline it is empty for a peer this device
+ * has never loaded, so a keyless cache snapshot stays 'checking'.
+ * includeMetadataChanges is what delivers the follow-up snapshot when the
+ * server confirms the same data.
  */
 export function subscribePeerKeyStatus(
     peerUid: string,
@@ -63,9 +69,11 @@ export function subscribePeerKeyStatus(
 ): () => void {
     return onSnapshot(
         doc(db, 'users', peerUid),
+        { includeMetadataChanges: true },
         (snap) => {
             const hasKey = snap.exists() && Boolean(snap.data().publicKey);
-            onStatus(hasKey ? 'ready' : 'missing');
+            if (hasKey) onStatus('ready');
+            else onStatus(snap.metadata.fromCache ? 'checking' : 'missing');
         },
         (err) => {
             console.error('Failed to watch peer key status', err);

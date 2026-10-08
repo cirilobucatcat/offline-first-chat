@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Lock } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { changePassword } from '@/lib/account';
 import { Field } from '@/components/Field';
@@ -84,7 +84,7 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           </Button>
         }
       >
-        <p className='px-5 py-6 text-center text-sm text-ink dark:text-pale-blue'>
+        <p className='px-5 py-6 text-center text-sm text-legacy-ink dark:text-pale-blue'>
           Your password has been changed.
         </p>
       </Modal>
@@ -113,7 +113,6 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         <Field
           id='current-password'
           label='Current password'
-          icon={Lock}
           type={showCurrent ? 'text' : 'password'}
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
@@ -126,7 +125,6 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         <Field
           id='new-password'
           label='New password'
-          icon={Lock}
           type={showNew ? 'text' : 'password'}
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
@@ -138,7 +136,6 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         <Field
           id='confirm-password'
           label='Confirm new password'
-          icon={Lock}
           type={showNew ? 'text' : 'password'}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}

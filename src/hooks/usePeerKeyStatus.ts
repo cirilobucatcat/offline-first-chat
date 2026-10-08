@@ -10,16 +10,14 @@ export type { PeerKeyStatus };
  * yet) — returns 'checking' without touching Firestore.
  */
 export function usePeerKeyStatus(peerUid: string | null): PeerKeyStatus {
-    const [status, setStatus] = useState<PeerKeyStatus>('checking');
+    // Kept with the peer it describes, so a status left over from the
+    // previous conversation reads as 'checking'.
+    const [result, setResult] = useState<{ peerUid: string; status: PeerKeyStatus } | null>(null);
 
     useEffect(() => {
-        if (!peerUid) {
-            setStatus('checking');
-            return;
-        }
-        setStatus('checking');
-        return subscribePeerKeyStatus(peerUid, setStatus);
+        if (!peerUid) return;
+        return subscribePeerKeyStatus(peerUid, (status) => setResult({ peerUid, status }));
     }, [peerUid]);
 
-    return status;
+    return peerUid && result?.peerUid === peerUid ? result.status : 'checking';
 }

@@ -11,7 +11,7 @@ export function ChatPreferencesSection() {
 
     return (
         <section
-            className="rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-surface p-5 md:p-6 space-y-5"
+            className="rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface p-5 md:p-6 space-y-5"
             aria-labelledby="chat-preferences-heading"
         >
             <div>
@@ -22,7 +22,7 @@ export function ChatPreferencesSection() {
             </div>
 
             <div>
-                <p className="mb-2 text-sm font-medium text-ink dark:text-pale-blue">Timestamp format</p>
+                <p className="mb-2 text-sm font-medium text-legacy-ink dark:text-pale-blue">Timestamp format</p>
                 <div role="radiogroup" aria-label="Timestamp format" className="grid grid-cols-2 gap-2">
                     {TIMESTAMP_OPTIONS.map(({ value, label }) => (
                         <button

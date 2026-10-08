@@ -1,5 +1,8 @@
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@/lib/helpers';
+import { Icon, type IconName } from './Icon';
+import { IconButton } from './IconButton';
 
 const PopoverContext = createContext<{ close: () => void } | null>(null);
 
@@ -10,7 +13,7 @@ function usePopoverClose(): () => void {
 }
 
 interface PopoverProps {
-  icon: ReactNode;
+  icon: IconName;
   label: string;
   placement?: 'bottom' | 'top';
   align?: 'start' | 'end';
@@ -34,25 +37,22 @@ export function Popover({ icon, label, placement = 'bottom', align = 'end', minW
 
   return (
     <div className="relative shrink-0" ref={containerRef}>
-      <button
-        type="button"
+      <IconButton
+        icon={icon}
+        label={label}
         onClick={() => setOpen((v) => !v)}
-        aria-label={label}
         aria-haspopup="true"
         aria-expanded={open}
-        className="wc-icon-btn wc-focus rounded-full p-2"
-      >
-        {icon}
-      </button>
+      />
 
       {open && (
         <div
           role="menu"
-          className={[
-            'absolute z-10 rounded-xl overflow-hidden border bg-white dark:bg-surface border-hairline dark:border-hairline-dark shadow-[0_8px_24px_rgba(15,48,64,0.12)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]',
+          className={cn(
+            'absolute z-10 overflow-hidden rounded-md bg-surface-raised py-1 shadow-float',
             align === 'end' ? 'right-0' : 'left-0',
             placement === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1',
-          ].join(' ')}
+          )}
           style={{ minWidth }}
         >
           <PopoverContext.Provider value={{ close: () => setOpen(false) }}>{children}</PopoverContext.Provider>
@@ -63,7 +63,7 @@ export function Popover({ icon, label, placement = 'bottom', align = 'end', minW
 }
 
 interface PopoverItemProps {
-  icon: ReactNode;
+  icon: IconName;
   onClick: () => void;
   disabled?: boolean;
   tone?: 'default' | 'danger';
@@ -81,15 +81,17 @@ export function PopoverItem({ icon, onClick, disabled = false, tone = 'default',
         close();
         onClick();
       }}
-      className={`wc-item wc-focus w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left disabled:opacity-50 ${tone === 'danger' ? 'text-error dark:text-error-dark' : 'text-ink dark:text-pale-blue'
-        }`}
+      className={cn(
+        'focus-ring-inset flex min-h-hit w-full cursor-pointer items-center gap-3 px-4 text-left text-body hover:bg-surface-fill disabled:cursor-not-allowed disabled:opacity-45',
+        tone === 'danger' ? 'text-danger' : 'text-ink',
+      )}
     >
-      {icon}
+      <Icon name={icon} size={20} className={tone === 'danger' ? undefined : 'text-ink-muted'} />
       {children}
     </button>
   );
 }
 
 export function PopoverDivider() {
-  return <div role="separator" className="border-t border-hairline dark:border-hairline-dark" />;
+  return <div role="separator" className="my-1 border-t border-line" />;
 }

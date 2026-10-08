@@ -37,7 +37,7 @@ export function PwaUpdatePrompt() {
     <div
       role='status'
       aria-live='polite'
-      className='fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-ink px-4 py-3 text-pale-blue shadow-lg'
+      className='fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-legacy-ink px-4 py-3 text-pale-blue shadow-lg'
     >
       <span className='text-sm'>
         {needRefresh

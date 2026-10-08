@@ -114,7 +114,18 @@ export async function getOrCreateIdentityKeyPair(
       createdAt: Date.now(),
     };
     await saveKeyPair(entry);
-    await publishPublicKey(uid, keyPair.publicKey);
+    try {
+      await publishPublicKey(uid, keyPair.publicKey);
+    } catch (error) {
+      // A key that never got published must not stay: on the next load
+      // step 1 would return it as this account's identity, while every
+      // peer and every other device uses whatever key IS published. The
+      // rules make publicKey write-once, so this is what happens to the
+      // device that loses a first-sign-in race — next time it finds the
+      // winner's key in step 2 and goes to 'needs-link'.
+      await deleteStoredKeyPair(uid);
+      throw error;
+    }
 
     return { status: 'created', keyPair };
   } catch (error) {
@@ -139,7 +150,38 @@ export async function importPeerPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
   );
 }
 
-/** Wipes this device's local private key. Call from sign-out-everywhere / account deletion flows. */
+/**
+ * Whether `privateKey` is the private half of `publicKey`. Device linking
+ * delivers the private key through Firestore, so it is checked against the
+ * account's published key before it is saved: a wrong one would leave this
+ * device unable to read anything, with no error to show for it.
+ *
+ * Checked by doing the maths rather than by comparing JWK fields, because a
+ * crafted JWK can carry a public point that doesn't belong to its private
+ * scalar. With a throwaway pair (e, E): ECDH(privateKey, E) equals
+ * ECDH(e, publicKey) only when the two keys are a pair.
+ */
+export async function privateKeyMatchesPublicKey(
+  privateKey: CryptoKey,
+  publicKey: CryptoKey,
+): Promise<boolean> {
+  const probe = (await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: CURVE },
+    false,
+    ['deriveBits'],
+  )) as CryptoKeyPair;
+
+  const [viaPrivate, viaPublic] = await Promise.all([
+    crypto.subtle.deriveBits({ name: 'ECDH', public: probe.publicKey }, privateKey, 256),
+    crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, probe.privateKey, 256),
+  ]);
+
+  const a = new Uint8Array(viaPrivate);
+  const b = new Uint8Array(viaPublic);
+  return a.length === b.length && a.every((byte, i) => byte === b[i]);
+}
+
+/** Wipes this device's local private key. Account deletion only: logging out keeps it (see logOut in account.ts). */
 export async function forgetIdentityKeyPair(uid: string): Promise<void> {
   await deleteStoredKeyPair(uid);
 }

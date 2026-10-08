@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { IconButton } from './IconButton';
 
 interface ModalProps {
   titleId: string;
@@ -28,8 +28,9 @@ export function Modal({ titleId, title, onClose, children, footer, maxWidth = 42
   }, []);
 
   return (
+    // A bottom sheet on a phone, a centred dialog from md up.
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-ink/45"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-scrim md:items-center md:px-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -38,25 +39,19 @@ export function Modal({ titleId, title, onClose, children, footer, maxWidth = 42
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full flex flex-col rounded-2xl overflow-hidden bg-white dark:bg-surface"
-        style={{ maxWidth, maxHeight: '80vh', fontFamily: "'Outfit', sans-serif" }}
+        className="flex w-full flex-col overflow-hidden rounded-t-sheet bg-surface-raised text-ink shadow-float [--focus-gap:var(--color-surface-raised)] motion-safe:animate-sheet-up md:rounded-sheet md:motion-safe:animate-bubble-in"
+        style={{ maxWidth, maxHeight: '80vh' }}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0 border-hairline dark:border-hairline-dark">
-          <h2 id={titleId} className="text-lg font-semibold text-ink dark:text-pale-blue">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line py-2 pr-2 pl-5">
+          <h2 id={titleId} className="text-headline text-ink">
             {title}
           </h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="wc-icon-btn wc-focus rounded-full p-1.5">
-            <X size={20} aria-hidden="true" />
-          </button>
+          <IconButton icon="close" label="Close" onClick={onClose} />
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
 
-        {footer && (
-          <div className="px-5 py-4 border-t shrink-0 border-hairline dark:border-hairline-dark">
-            {footer}
-          </div>
-        )}
+        {footer && <div className="shrink-0 border-t border-line px-5 py-4">{footer}</div>}
       </div>
     </div>
   );

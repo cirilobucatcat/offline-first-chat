@@ -33,7 +33,7 @@ export function AppearanceSection() {
 
     return (
         <section
-            className="rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-surface p-5 md:p-6 space-y-6"
+            className="rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface p-5 md:p-6 space-y-6"
             aria-labelledby="appearance-heading"
         >
             <div>
@@ -44,7 +44,7 @@ export function AppearanceSection() {
             </div>
 
             <div>
-                <p className="mb-2 text-sm font-medium text-ink dark:text-pale-blue">Theme</p>
+                <p className="mb-2 text-sm font-medium text-legacy-ink dark:text-pale-blue">Theme</p>
                 <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2">
                     {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
                         <button key={value} type="button" role="radio" aria-checked={preference === value} onClick={() => setPreference(value)} className={segmentClasses(preference === value)}>
@@ -57,7 +57,7 @@ export function AppearanceSection() {
             </div>
 
             <div>
-                <p className="mb-2 text-sm font-medium text-ink dark:text-pale-blue">Text size</p>
+                <p className="mb-2 text-sm font-medium text-legacy-ink dark:text-pale-blue">Text size</p>
                 <div role="radiogroup" aria-label="Text size" className="grid grid-cols-3 gap-2">
                     {TEXT_SIZE_OPTIONS.map(({ value, label }) => (
                         <button key={value} type="button" role="radio" aria-checked={textSize === value} onClick={() => setTextSize(value)} className={segmentClasses(textSize === value)}>
@@ -68,7 +68,7 @@ export function AppearanceSection() {
             </div>
 
             <div>
-                <p className="mb-2 text-sm font-medium text-ink dark:text-pale-blue">Message density</p>
+                <p className="mb-2 text-sm font-medium text-legacy-ink dark:text-pale-blue">Message density</p>
                 <div role="radiogroup" aria-label="Message density" className="grid grid-cols-2 gap-2">
                     {DENSITY_OPTIONS.map(({ value, label }) => (
                         <button key={value} type="button" role="radio" aria-checked={messageDensity === value} onClick={() => setMessageDensity(value)} className={segmentClasses(messageDensity === value)}>

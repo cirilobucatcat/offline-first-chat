@@ -84,12 +84,12 @@ export default function Auth() {
                             waits on a connection.
                         </h2>
                         <p className="text-base leading-relaxed max-w-sm" style={{ color: "rgba(227,242,253,0.8)" }}>
-                            Every message is stored on your device first and encrypted end-to-end — online or off.
+                            Messages are saved on your device first. Direct messages are end-to-end encrypted.
                         </p>
 
                         <ul className="mt-10 space-y-4">
                             <FeatureItem icon={WifiOff} text="Works fully offline, syncs when you're back" />
-                            <FeatureItem icon={ShieldCheck} text="End-to-end encrypted, always" />
+                            <FeatureItem icon={ShieldCheck} text="Direct messages are end-to-end encrypted" />
                             <FeatureItem icon={Zap} text="Lightweight — built for speed" />
                         </ul>
                     </div>
@@ -184,7 +184,7 @@ export default function Auth() {
 
                     <p className="flex items-center justify-center gap-1.5 mt-5 text-xs" style={{ color: "rgba(15,48,64,0.55)" }}>
                         <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-                        End-to-end encrypted. Works fully offline.
+                        Direct messages are end-to-end encrypted. Group chats are not yet.
                     </p>
 
                     <p className="text-center text-sm mt-8" style={{ color: "rgba(15,48,64,0.65)" }}>

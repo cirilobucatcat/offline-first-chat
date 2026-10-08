@@ -19,9 +19,9 @@ export default defineConfig({
       manifest: {
         name: 'WeakChat',
         short_name: 'WeakChat',
-        description: 'Secure, offline-first, end-to-end encrypted chat',
-        theme_color: '#0D47A1',
-        background_color: '#E3F2FD',
+        description: 'Offline-first chat with end-to-end encrypted direct messages',
+        theme_color: '#ffffff',
+        background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
         icons: [
@@ -53,22 +53,8 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-stylesheets' },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // woff2 is not in the default pattern; without it Outfit is not precached.
+        globPatterns: ['**/*.{js,css,html,woff2}'],
       },
     }),
   ],

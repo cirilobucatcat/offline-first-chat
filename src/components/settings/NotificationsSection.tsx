@@ -8,7 +8,7 @@ export function NotificationsSection() {
 
   return (
     <section
-      className='rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-surface p-5 md:p-6 space-y-5'
+      className='rounded-2xl border border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface p-5 md:p-6 space-y-5'
       aria-labelledby='notifications-heading'
     >
       <div>
@@ -25,7 +25,7 @@ export function NotificationsSection() {
           <div className='flex items-start gap-3 min-w-0'>
             <Volume2 size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-primary dark:text-accent' />
             <div className='min-w-0'>
-              <p className='text-sm font-medium text-ink dark:text-pale-blue'>Message sound</p>
+              <p className='text-sm font-medium text-legacy-ink dark:text-pale-blue'>Message sound</p>
               <p className='text-xs mt-0.5 text-muted dark:text-mist'>
                 Play a sound for new messages when this tab isn't focused
               </p>
@@ -38,7 +38,7 @@ export function NotificationsSection() {
           <div className='flex items-start gap-3 min-w-0'>
             <Bell size={18} aria-hidden='true' className='shrink-0 mt-0.5 text-primary dark:text-accent' />
             <div className='min-w-0'>
-              <p className='text-sm font-medium text-ink dark:text-pale-blue'>Unread badge in tab title</p>
+              <p className='text-sm font-medium text-legacy-ink dark:text-pale-blue'>Unread badge in tab title</p>
               <p className='text-xs mt-0.5 text-muted dark:text-mist'>
                 Show your unread count in the browser tab, e.g. "(3) WeakChat"
               </p>
@@ -49,7 +49,7 @@ export function NotificationsSection() {
       </div>
 
       <div className='flex gap-3 rounded-xl px-4 py-3 bg-pale-blue dark:bg-accent/10'>
-        <p className='text-xs text-ink dark:text-pale-blue'>
+        <p className='text-xs text-legacy-ink dark:text-pale-blue'>
           These only work on this device, and only while WeakChat is open in a
           tab. Notifications when the app or browser is fully closed aren't
           supported yet.

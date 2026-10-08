@@ -73,6 +73,17 @@ export interface SendMessageOptions {
   myPrivateKey: CryptoKey;
 }
 
+/**
+ * Thrown by sendMessage when the other person in a direct chat has no
+ * published key. Nothing has been written when this is thrown.
+ */
+export class PeerKeyMissingError extends Error {
+  constructor() {
+    super('Cannot send: recipient has not set up encryption yet.');
+    this.name = 'PeerKeyMissingError';
+  }
+}
+
 export async function sendMessage(
   conversationId: string,
   senderId: string,
@@ -111,7 +122,7 @@ export async function sendMessage(
       : null;
 
     if (!key) {
-      throw new Error('Cannot send: recipient has not set up encryption yet.');
+      throw new PeerKeyMissingError();
     }
 
     const associatedData = `${conversationId}:${senderId}`;

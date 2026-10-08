@@ -1,112 +1,107 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { deleteUser } from 'firebase/auth';
-import { TriangleAlert, Trash2, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
+import { Field } from '@/components/Field';
 import { useAuth } from '@/context/AuthContext';
-import { COLOR } from '@/lib/constants';
+import { deleteAccount } from '@/lib/account';
 
 interface DeleteAccountModalProps {
   onClose: () => void;
 }
 
+function deleteErrorMessage(code: string): string {
+  switch (code) {
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'That password is incorrect.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Wait a bit before trying again.';
+    case 'auth/network-request-failed':
+    case 'unavailable':
+      return "Deleting your account needs a connection. Try again when you're online.";
+    case 'permission-denied':
+      return "Your account data couldn't be deleted, so your account is still open. Try again later.";
+    default:
+      return "Your account couldn't be deleted. Try again.";
+  }
+}
+
 export function DeleteAccountModal({ onClose }: DeleteAccountModalProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [confirmText, setConfirmText] = useState('');
+  const [password, setPassword] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canDelete = confirmText === 'DELETE' && !deleting;
+  const canDelete = password.length > 0 && !deleting;
 
   async function handleConfirm() {
-    if (!user) return;
+    if (!user || !canDelete) return;
     setDeleting(true);
     setError(null);
-    try {
-      // NOTE: this only removes the Auth user. Firestore data
-      // (users/{uid}, conversations/{id}, messages) is NOT cascade-deleted
-      // client-side — a client can't safely enumerate + delete every
-      // conversation a user participated in under security rules. Wire a
-      // Cloud Function on Auth user-delete for the actual cleanup; treat
-      // this call as step 1.
-      await deleteUser(user);
-      navigate('/login', { replace: true });
-    } catch (err) {
-      console.error('Failed to delete account', err);
-      const code = (err as { code?: string })?.code;
-      if (code === 'auth/requires-recent-login') {
-        setError('For your security, please sign out and sign back in before deleting your account.');
-      } else {
-        setError('Something went wrong. Please try again.');
-      }
-      setDeleting(false);
+
+    const result = await deleteAccount(user, password);
+    if (result.status === 'success') {
+      // A full page load, not navigate(): deleteAccount shut down the
+      // Firestore instance the running app was using.
+      window.location.replace('/login');
+      return;
     }
+
+    setError(deleteErrorMessage(result.code));
+    setDeleting(false);
   }
 
   return (
     <Modal
       titleId='delete-account-modal'
-      onClose={onClose}
-      title={
-        <span className="flex items-center gap-3">
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ backgroundColor: COLOR.dangerBg }}
-          >
-            <TriangleAlert className="h-5 w-5" style={{ color: COLOR.danger }} />
-          </span>
-          Delete your account?
-        </span>
-      }
+      title='Delete your account?'
+      onClose={() => {
+        if (!deleting) onClose();
+      }}
       footer={
-        <div className="flex justify-end gap-3">
-          <Button variant="neutral" size="sm" onClick={onClose}>
+        <div className='flex justify-end gap-2'>
+          <Button variant='ghost' onClick={onClose} disabled={deleting}>
             Cancel
           </Button>
-          <Button variant="dangerSolid" size="sm" disabled={!canDelete} onClick={handleConfirm}>
-            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            {deleting ? 'Deleting' : 'Delete account'}
+          <Button variant='danger' icon='trash' isLoading={deleting} disabled={!canDelete} onClick={handleConfirm}>
+            Delete account
           </Button>
         </div>
       }
     >
-      <div className='p-4'>
-        <p className="text-sm" style={{ color: COLOR.inkMuted }}>
-          This permanently deletes your profile, conversations, and message history from every
-          device. It can&apos;t be undone.
+      <form
+        className='flex flex-col gap-4 px-5 py-5'
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleConfirm();
+        }}
+      >
+        <p className='text-subhead text-ink-muted'>
+          This closes your account and deletes your profile, your device list and the encryption
+          key on this device. Chats you were in stay with the other people in them, including your
+          name and the messages you sent. It can&apos;t be undone.
         </p>
 
-        <div className="mt-4">
-          <label
-            htmlFor="confirm-delete"
-            className="mb-1.5 block text-sm font-medium"
-            style={{ color: COLOR.ink }}
-          >
-            Type DELETE to confirm
-          </label>
-          <input
-            id="confirm-delete"
-            autoFocus
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canDelete) void handleConfirm();
-            }}
-            className="wc-danger-focus w-full rounded-xl border py-2.5 px-3 text-sm outline-none"
-            style={{ borderColor: '#FCA5A5', color: COLOR.ink }}
-            aria-describedby="confirm-delete-help"
-          />
-          <p
-            id="confirm-delete-help"
-            className="mt-1.5 text-xs"
-            style={{ color: error ? COLOR.danger : COLOR.inkMuted }}
-          >
-            {error ?? 'This confirms you understand the action is permanent.'}
+        <Field
+          id='delete-account-password'
+          label='Current password'
+          type='password'
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError(null);
+          }}
+          autoComplete='current-password'
+        />
+
+        {error && (
+          <p role='alert' className='flex items-start gap-2 rounded-md bg-danger-soft px-3 py-2 text-footnote text-danger'>
+            <Icon name='alert' size={16} className='mt-px' />
+            {error}
           </p>
-        </div>
-      </div>
+        )}
+      </form>
     </Modal>
   );
 }

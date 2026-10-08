@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, Plus, Lock, Check, CheckCheck, UserPlus, Users } from 'lucide-react';
+import { Search, Check, CheckCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { formatRelativeTime, isLastMessageReadByAll, getConversationTitle, getOtherParticipant } from '../../lib/chat';
 import { searchUsers, type UserProfile } from '../../lib/users';
@@ -28,10 +28,14 @@ export function ConversationList({
   const { user } = useAuth();
 
   const [query, setQuery] = useState('');
-  const [userResults, setUserResults] = useState<UserProfile[]>([]);
-  const [searching, setSearching] = useState(false);
+  // People results are kept with the query they answer. Until the results
+  // for what is typed now arrive, the search is still running.
+  const [peopleSearch, setPeopleSearch] = useState<{ query: string; results: UserProfile[] } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const trimmedQuery = query.trim().toLowerCase();
+  const searchSettled = peopleSearch?.query === trimmedQuery;
+  const userResults = trimmedQuery && searchSettled ? peopleSearch.results : [];
+  const searching = Boolean(user && trimmedQuery) && !searchSettled;
 
   const filteredConversations = conversations.filter((c) => {
     if (!user || !trimmedQuery) return true;
@@ -39,30 +43,29 @@ export function ConversationList({
   });
 
   useEffect(() => {
-    if (!user || !trimmedQuery) {
-      setUserResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
+    if (!user || !trimmedQuery) return;
+    let cancelled = false;
     const timeout = setTimeout(async () => {
+      let results: UserProfile[] = [];
       try {
-        const results = await searchUsers(trimmedQuery, user.uid);
+        const found = await searchUsers(trimmedQuery, user.uid);
         const existingUids = new Set(
           conversations
             .filter((c) => !c.isGroup)
             .map((c) => c.participants.find((p) => p !== user.uid))
             .filter(Boolean) as string[],
         );
-        setUserResults(results.filter((u) => !existingUids.has(u.uid)));
+        results = found.filter((u) => !existingUids.has(u.uid));
       } catch (err) {
         console.error('User search failed', err);
-        setUserResults([]);
-      } finally {
-        setSearching(false);
       }
+      // A slower, older search must not replace the results for a newer query.
+      if (!cancelled) setPeopleSearch({ query: trimmedQuery, results });
     }, 300);
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [trimmedQuery, user, conversations]);
 
   function handleStartConversation(u: UserProfile) {
@@ -72,31 +75,22 @@ export function ConversationList({
 
   return (
     <aside
-      className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-col w-full shrink-0 border-r border-hairline dark:border-hairline-dark bg-white dark:bg-surface`}
+      className={`${mobileHidden ? 'hidden' : 'flex'} md:flex flex-col w-full shrink-0 border-r border-hairline dark:border-hairline-dark bg-white dark:bg-legacy-surface`}
       style={{ maxWidth: 400 }}
       aria-label="Chat list"
     >
       <div className="px-5 pt-6 pb-4 border-b border-hairline dark:border-hairline-dark relative">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-ink dark:text-pale-blue">Chats</h1>
-          <Popover icon={<Plus size={20} aria-hidden="true" />} label="Start new conversation">
-            <PopoverItem
-              icon={<UserPlus size={17} aria-hidden="true" className="text-muted dark:text-mist" />}
-              onClick={() => searchInputRef.current?.focus()}
-            >
+          <h1 className="text-2xl font-semibold text-legacy-ink dark:text-pale-blue">Chats</h1>
+          <Popover icon="compose" label="Start new conversation">
+            <PopoverItem icon="user-plus" onClick={() => searchInputRef.current?.focus()}>
               New chat
             </PopoverItem>
-            <PopoverItem
-              icon={<Users size={17} aria-hidden="true" className="text-muted dark:text-mist" />}
-              onClick={onOpenNewGroup}
-            >
+            <PopoverItem icon="users" onClick={onOpenNewGroup}>
               New group
             </PopoverItem>
           </Popover>
         </div>
-        <p className="flex items-center gap-1.5 mt-1.5 text-xs text-muted dark:text-mist">
-          <Lock size={12} aria-hidden="true" /> End-to-end encrypted
-        </p>
       </div>
 
       <div className="px-4 py-3">
@@ -110,7 +104,7 @@ export function ConversationList({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search conversations or people"
-            className="wc-focus w-full rounded-full py-2.5 pl-10 pr-4 text-sm bg-pale-blue dark:bg-ink text-ink dark:text-pale-blue placeholder:text-muted dark:placeholder:text-mist"
+            className="wc-focus w-full rounded-full py-2.5 pl-10 pr-4 text-sm bg-pale-blue dark:bg-legacy-ink text-legacy-ink dark:text-pale-blue placeholder:text-muted dark:placeholder:text-mist"
           />
         </div>
       </div>
@@ -145,10 +139,10 @@ export function ConversationList({
                       : 'bg-transparent border-l-transparent'
                     }`}
                 >
-                  <Avatar initials={other?.initials ?? '#'} uid={other?.uid ?? c.id} isGroup={c.isGroup} />
+                  <Avatar name={title} id={other?.uid ?? c.id} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className={`truncate text-ink dark:text-pale-blue ${isUnread ? 'font-bold' : 'font-medium'}`}>
+                      <span className={`truncate text-legacy-ink dark:text-pale-blue ${isUnread ? 'font-bold' : 'font-medium'}`}>
                         {title}
                       </span>
                       <span className={`text-xs shrink-0 ${isUnread ? 'text-primary dark:text-accent font-bold' : 'text-muted dark:text-mist font-normal'}`}>
@@ -156,7 +150,7 @@ export function ConversationList({
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <span className={`truncate text-sm flex items-center gap-1 min-w-0 ${isUnread ? 'text-ink dark:text-pale-blue font-semibold' : 'text-muted dark:text-mist font-normal'}`}>
+                      <span className={`truncate text-sm flex items-center gap-1 min-w-0 ${isUnread ? 'text-legacy-ink dark:text-pale-blue font-semibold' : 'text-muted dark:text-mist font-normal'}`}>
                         {fromMe &&
                           (readByAll ? (
                             <CheckCheck size={14} aria-hidden="true" className="text-primary dark:text-accent shrink-0" />
@@ -168,7 +162,7 @@ export function ConversationList({
                       {isUnread && (
                         <span
                           aria-hidden="true"
-                          className="flex items-center justify-center rounded-full text-xs font-semibold shrink-0 min-w-5 h-5 px-1.5 bg-primary dark:bg-accent text-white dark:text-ink"
+                          className="flex items-center justify-center rounded-full text-xs font-semibold shrink-0 min-w-5 h-5 px-1.5 bg-primary dark:bg-accent text-white dark:text-legacy-ink"
                         >
                           {unread}
                         </span>
@@ -198,9 +192,9 @@ export function ConversationList({
                     onClick={() => handleStartConversation(u)}
                     className="wc-item wc-focus w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
                   >
-                    <Avatar initials={u.initials} uid={u.uid} />
+                    <Avatar name={u.name} id={u.uid} />
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-ink dark:text-pale-blue">{u.name}</p>
+                      <p className="truncate font-medium text-legacy-ink dark:text-pale-blue">{u.name}</p>
                       <p className="truncate text-xs text-muted dark:text-mist">{u.email}</p>
                     </div>
                   </button>

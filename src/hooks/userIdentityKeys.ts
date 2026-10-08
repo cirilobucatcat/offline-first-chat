@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   getOrCreateIdentityKeyPair,
   importPeerPublicKey,
+  privateKeyMatchesPublicKey,
 } from '../lib/crypto/keyManager';
 import { saveKeyPair } from '../lib/crypto/keyStore';
 import {
@@ -18,8 +19,20 @@ export type IdentityKeysState =
   | { phase: 'idle' }
   | { phase: 'loading' }
   | { phase: 'ready'; keyPair: CryptoKeyPair }
-  | { phase: 'needs-link'; code: string; cancel: () => void }
-  | { phase: 'error'; error: unknown };
+  | {
+      phase: 'needs-link';
+      code: string;
+      /** The code can no longer be used. Call `refresh` for a new one. */
+      expired: boolean;
+      /** Starts over with a fresh session and a new code. */
+      refresh: () => void;
+      /** Stops waiting and deletes the pending session. Call before signing out. */
+      cancel: () => void;
+    }
+  | { phase: 'error'; error: unknown; retry: () => void };
+
+const IDLE: IdentityKeysState = { phase: 'idle' };
+const LOADING: IdentityKeysState = { phase: 'loading' };
 
 /**
  * Ensures this device has (or obtains) the signed-in account's E2EE
@@ -35,70 +48,117 @@ export type IdentityKeysState =
  * 'needs-link' means this account already has a published key from some
  * other device. Rather than dead-ending there, this hook starts a device
  * link session immediately and listens for it to complete — see
- * deviceLink.ts for the handshake itself. Cancelling (via the returned
- * `cancel`) deletes the pending session and leaves the caller free to
- * retry, which re-runs this effect and starts a fresh one.
+ * deviceLink.ts for the handshake itself. The session ends when the other
+ * device completes it, when its code expires, or when the caller calls
+ * `cancel`. `refresh` (and `retry` after an error) re-runs the whole flow,
+ * which starts a fresh session with a new code.
  */
 export function useIdentityKeys(): IdentityKeysState {
   const { user } = useAuth();
-  const [state, setState] = useState<IdentityKeysState>({ phase: 'idle' });
+  const uid = user?.uid ?? null;
+  const [attempt, setAttempt] = useState(0);
+  // A result is kept with the run (account + attempt) it belongs to. Anything
+  // left over from an earlier run reads as 'loading', so the effect never has
+  // to reset state itself.
+  const [result, setResult] = useState<{ runKey: string; state: IdentityKeysState } | null>(null);
+  const runKey = uid ? `${uid}:${attempt}` : null;
 
   useEffect(() => {
-    if (!user?.uid) {
-      setState({ phase: 'idle' });
-      return;
-    }
+    if (!uid || !runKey) return;
 
-    const uid = user.uid;
     let cancelled = false;
-    let unsubscribeSession: (() => void) | null = null;
+    let closeSession: (() => void) | null = null;
 
-    setState({ phase: 'loading' });
+    const publish = (state: IdentityKeysState) => {
+      if (!cancelled) setResult({ runKey, state });
+    };
+    const restart = () => setAttempt((n) => n + 1);
 
-    function markReady(keyPair: CryptoKeyPair) {
-      setState({ phase: 'ready', keyPair });
+    const markReady = (keyPair: CryptoKeyPair) => {
+      publish({ phase: 'ready', keyPair });
       // Bookkeeping only — never block getting the user into the app on
       // this succeeding, and never let a failure here surface as an
       // encryption error (it isn't one).
       void registerOrTouchDevice(uid).catch(() => {});
-    }
+    };
 
-    async function run() {
-      const result = await getOrCreateIdentityKeyPair(uid);
+    const run = async () => {
+      const identity = await getOrCreateIdentityKeyPair(uid);
       if (cancelled) return;
 
-      if (result.status === 'created' || result.status === 'existing') {
-        markReady(result.keyPair);
+      if (identity.status === 'created' || identity.status === 'existing') {
+        markReady(identity.keyPair);
         return;
       }
 
-      if (result.status === 'error') {
-        setState({ phase: 'error', error: result.error });
+      if (identity.status === 'error') {
+        publish({ phase: 'error', error: identity.error, retry: restart });
         return;
       }
 
-      // result.status === 'needs-link' from here on.
+      // identity.status === 'needs-link' from here on.
       const session = await createLinkSession(uid);
-      if (cancelled) return;
+      if (cancelled) {
+        // Torn down while the session was being written: nothing is
+        // listening for it, so don't leave it behind.
+        void deleteLinkSession(uid, session.sessionId).catch(() => {});
+        return;
+      }
 
-      const cancel = () => {
-        unsubscribeSession?.();
-        unsubscribeSession = null;
-        void deleteLinkSession(uid, session.sessionId);
+      let open = true;
+      let accepting = false;
+      let unsubscribe: (() => void) | null = null;
+      const expiryTimer = setTimeout(
+        () => expire(),
+        Math.max(0, session.expiresAt - Date.now()),
+      );
+
+      // Not awaited: a Firestore write never resolves while offline, and the
+      // TTL policy on expiresAt removes the doc if this delete never lands.
+      const close = () => {
+        if (!open) return;
+        open = false;
+        clearTimeout(expiryTimer);
+        unsubscribe?.();
+        void deleteLinkSession(uid, session.sessionId).catch(() => {});
+      };
+      closeSession = close;
+
+      const showCode = (expired: boolean) =>
+        publish({
+          phase: 'needs-link',
+          code: session.code,
+          expired,
+          refresh: restart,
+          cancel: close,
+        });
+
+      const expire = () => {
+        if (!open || accepting) return;
+        close();
+        showCode(true);
       };
 
-      setState({ phase: 'needs-link', code: session.code, cancel });
-
       const handleUpdate = async (update: LinkSessionUpdate | null) => {
-        if (cancelled || !update || update.status !== 'ready') return;
+        if (cancelled || !open || accepting) return;
+        // The doc is gone: the TTL policy or another tab removed it.
+        if (!update) {
+          expire();
+          return;
+        }
+        if (update.status !== 'ready') return;
 
+        accepting = true;
         try {
           const privateKey = await acceptLinkSession(
             session.ephemeralKeyPair,
             session.sessionId,
             update,
           );
-          const publicKey = await importPeerPublicKey(result.publicKeyJwk);
+          const publicKey = await importPeerPublicKey(identity.publicKeyJwk);
+          if (!(await privateKeyMatchesPublicKey(privateKey, publicKey))) {
+            throw new Error('The linked key does not match the published key for this account.');
+          }
           if (cancelled) return;
 
           await saveKeyPair({
@@ -108,34 +168,32 @@ export function useIdentityKeys(): IdentityKeysState {
             createdAt: Date.now(),
           });
 
-          unsubscribeSession?.();
-          unsubscribeSession = null;
-          void deleteLinkSession(uid, session.sessionId);
-
+          close();
           markReady({ publicKey, privateKey });
         } catch (error) {
-          if (!cancelled) setState({ phase: 'error', error });
+          close();
+          publish({ phase: 'error', error, retry: restart });
         }
       };
 
-      unsubscribeSession = watchLinkSession(
-        uid,
-        session.sessionId,
-        (update) => {
-          void handleUpdate(update);
-        },
-      );
-    }
+      showCode(false);
+      unsubscribe = watchLinkSession(uid, session.sessionId, (update) => {
+        void handleUpdate(update);
+      });
+    };
 
-    run();
+    run().catch((error) => {
+      publish({ phase: 'error', error, retry: restart });
+    });
 
     return () => {
       cancelled = true;
-      unsubscribeSession?.();
+      closeSession?.();
     };
     // Depend on the primitive uid, not the `user` object — a fresh object
     // reference on every auth emission would otherwise re-run this needlessly.
-  }, [user?.uid]);
+  }, [uid, runKey]);
 
-  return state;
+  if (!runKey) return IDLE;
+  return result?.runKey === runKey ? result.state : LOADING;
 }
