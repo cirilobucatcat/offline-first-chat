@@ -14,13 +14,21 @@
  * directly — the same real-time layer already used for messages, no new
  * infrastructure.
  *
- * SESSION ID == CODE: the human-facing "code" the user types is just the
- * Firestore document ID. It isn't a secret on its own — Firestore rules
- * already restrict this whole subcollection to the signed-in account's own
- * uid, so nobody outside the account could read a session doc even if they
- * guessed the code. Its only job is letting the primary device find which
- * pending session the new device means, in case there's more than one
- * (e.g. an abandoned earlier attempt).
+ * THE CODE IS THE SECRET: the ECDH handshake alone only protects against
+ * someone *reading* the session doc. Anyone who can *write* it — a stolen
+ * sign-in is enough, the identity key is not needed — could swap in their
+ * own ephemeral public key and have the primary device wrap the identity
+ * key for them. The code the user carries from one screen to the other is
+ * what rules that out, so it is never written to Firestore:
+ *   - the session's document ID is derived from the code, so the primary
+ *     device can find the session without the ID giving the code away;
+ *   - a second value derived from the code is mixed into the wrapping key,
+ *     so a device that never saw the code can't unwrap what comes back,
+ *     whichever ephemeral key the session doc held.
+ * Both are derived through PBKDF2, and the code is 80 bits, so neither the
+ * document ID nor a captured wrapped key is a practical way to guess it.
+ * Don't shorten the code and don't store it. What this can't stop is the
+ * user typing in a code from a device that isn't theirs.
  *
  * LIFECYCLE:
  *   1. New device:     createLinkSession()    → writes 'pending', shows code
@@ -49,20 +57,100 @@ import { CURVE } from './keyManager';
 import { asBufferSource } from './messageCrypto';
 
 const SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes — short-lived on purpose
-// Crockford-style alphabet: no 0/O or 1/I/L, so a misread character can't
+// Crockford-style alphabet: no 0/O or 1/I, so a misread character can't
 // silently resolve to a different valid code.
 const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-const CODE_LENGTH = 8;
+// 16 characters of a 32-symbol alphabet is 80 bits. See THE CODE IS THE
+// SECRET above before changing this.
+export const LINK_CODE_LENGTH = 16;
+const CODE_GROUP_LENGTH = 4;
+const CODE_STRETCH_ITERATIONS = 600_000;
+const LINK_SALT = 'weakchat-device-link-v1';
 
-function generateSessionCode(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH));
+function generateLinkCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(LINK_CODE_LENGTH));
   return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join(
     '',
   );
 }
 
+/**
+ * The one form of a code that goes into the key derivation: upper case,
+ * with the spaces or hyphens it was shown or typed with removed.
+ */
+export function normalizeLinkCode(input: string): string {
+  return input.replace(/[\s-]/g, '').toUpperCase();
+}
+
+/** A normalized code in groups of four, for showing it and for typing it. */
+export function formatLinkCode(code: string): string {
+  return (
+    code.match(new RegExp(`.{1,${CODE_GROUP_LENGTH}}`, 'g'))?.join(' ') ?? ''
+  );
+}
+
 function linkSessionRef(uid: string, sessionId: string) {
   return doc(db, 'users', uid, 'linkSessions', sessionId);
+}
+
+/**
+ * Derives everything the two devices need from the code: where the session
+ * lives in Firestore, and the secret that goes into the wrapping key. The
+ * code is stretched with PBKDF2 first, because the session ID is visible to
+ * anyone who can read the account's data and would otherwise be a cheap way
+ * to test guesses. Salted with the uid so the work can't be shared between
+ * accounts.
+ */
+async function deriveFromCode(
+  uid: string,
+  code: string,
+): Promise<{ sessionId: string; codeSecret: ArrayBuffer }> {
+  const encoder = new TextEncoder();
+  const codeKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(normalizeLinkCode(code)),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  const stretched = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt: encoder.encode(`${LINK_SALT}:${uid}`),
+      iterations: CODE_STRETCH_ITERATIONS,
+    },
+    codeKey,
+    256,
+  );
+
+  const expandKey = await crypto.subtle.importKey(
+    'raw',
+    stretched,
+    'HKDF',
+    false,
+    ['deriveBits'],
+  );
+  const expand = (label: string, bits: number) =>
+    crypto.subtle.deriveBits(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: encoder.encode(LINK_SALT),
+        info: encoder.encode(label),
+      },
+      expandKey,
+      bits,
+    );
+  const [sessionIdBits, codeSecret] = await Promise.all([
+    expand('link-code:session-id', 128),
+    expand('link-code:secret', 256),
+  ]);
+
+  const sessionId = Array.from(new Uint8Array(sessionIdBits), (b) =>
+    b.toString(16).padStart(2, '0'),
+  ).join('');
+  return { sessionId, codeSecret };
 }
 
 /** A one-time keypair scoped to a single handshake — never the identity key itself. */
@@ -88,10 +176,15 @@ async function importEphemeralPublicKey(jwk: JsonWebKey): Promise<CryptoKey> {
  * for this one handshake. Mirrors messageCrypto.ts's ECDH → HKDF pattern,
  * with a distinct salt and an `info` bound to this sessionId, so this key
  * can never collide with (or be confused for) a conversation key.
+ *
+ * The input is the ECDH secret followed by the code secret, both 32 bytes.
+ * The ECDH half keeps out anyone who only reads the session doc; the code
+ * half keeps out anyone who put their own ephemeral key into it.
  */
 async function deriveHandshakeKey(
   myEphemeralPrivateKey: CryptoKey,
   theirEphemeralPublicKey: CryptoKey,
+  codeSecret: ArrayBuffer,
   sessionId: string,
 ): Promise<CryptoKey> {
   const sharedSecretBits = await crypto.subtle.deriveBits(
@@ -100,9 +193,15 @@ async function deriveHandshakeKey(
     256,
   );
 
+  const keyMaterial = new Uint8Array(
+    sharedSecretBits.byteLength + codeSecret.byteLength,
+  );
+  keyMaterial.set(new Uint8Array(sharedSecretBits), 0);
+  keyMaterial.set(new Uint8Array(codeSecret), sharedSecretBits.byteLength);
+
   const hkdfInput = await crypto.subtle.importKey(
     'raw',
-    sharedSecretBits,
+    keyMaterial,
     'HKDF',
     false,
     ['deriveKey'],
@@ -112,7 +211,7 @@ async function deriveHandshakeKey(
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('weakchat-device-link-v1'),
+      salt: new TextEncoder().encode(LINK_SALT),
       info: new TextEncoder().encode(`link:${sessionId}`),
     },
     hkdfInput,
@@ -123,9 +222,13 @@ async function deriveHandshakeKey(
 }
 
 export interface LinkSession {
+  /** The Firestore document ID. Derived from the code, but doesn't reveal it. */
   sessionId: string;
+  /** Shown on this device and typed on the other. Never written anywhere. */
   code: string;
   ephemeralKeyPair: CryptoKeyPair;
+  /** Derived from the code; goes into the wrapping key. Never written anywhere. */
+  codeSecret: ArrayBuffer;
   /** Milliseconds since the epoch. The primary device rejects the code after this. */
   expiresAt: number;
 }
@@ -139,15 +242,23 @@ export interface LinkSessionUpdate {
   expiresAt: Timestamp;
 }
 
+/** A live session as the primary device sees it, once the user has typed its code. */
+export interface PendingLinkSession extends LinkSessionUpdate {
+  sessionId: string;
+  codeSecret: ArrayBuffer;
+}
+
 /**
  * NEW DEVICE. Starts a linking session: generates this device's ephemeral
  * keypair, publishes its public half, and returns the code to show the
- * user. Hang on to `ephemeralKeyPair` — its private key is needed again in
- * acceptLinkSession() once the primary device responds.
+ * user. Hang on to the returned session — its ephemeral private key and
+ * code secret are needed again in acceptLinkSession() once the primary
+ * device responds.
  */
 export async function createLinkSession(uid: string): Promise<LinkSession> {
   const ephemeralKeyPair = await generateEphemeralKeyPair();
-  const sessionId = generateSessionCode();
+  const code = generateLinkCode();
+  const { sessionId, codeSecret } = await deriveFromCode(uid, code);
   const publicJwk = await crypto.subtle.exportKey(
     'jwk',
     ephemeralKeyPair.publicKey,
@@ -162,7 +273,7 @@ export async function createLinkSession(uid: string): Promise<LinkSession> {
     expiresAt: Timestamp.fromMillis(expiresAt),
   });
 
-  return { sessionId, code: sessionId, ephemeralKeyPair, expiresAt };
+  return { sessionId, code, ephemeralKeyPair, codeSecret, expiresAt };
 }
 
 /**
@@ -192,38 +303,42 @@ export function watchLinkSession(
 export async function findLinkSession(
   uid: string,
   code: string,
-): Promise<(LinkSessionUpdate & { sessionId: string }) | null> {
-  const snap = await getDoc(linkSessionRef(uid, code));
+): Promise<PendingLinkSession | null> {
+  if (normalizeLinkCode(code).length !== LINK_CODE_LENGTH) return null;
+
+  const { sessionId, codeSecret } = await deriveFromCode(uid, code);
+  const snap = await getDoc(linkSessionRef(uid, sessionId));
   if (!snap.exists()) return null;
 
   const data = snap.data() as LinkSessionUpdate;
   if (data.status !== 'pending') return null;
   if (data.expiresAt.toMillis() < Date.now()) return null;
 
-  return { ...data, sessionId: code };
+  return { ...data, sessionId, codeSecret };
 }
 
 /**
  * PRIMARY DEVICE. Completes the handshake: derives the shared secret,
  * wraps the identity private key under it, and writes the wrapped key back
- * to the session doc for the new device to pick up. `identityPrivateKey`
- * is this device's own already-unlocked key — from useMyIdentityKey(), not
- * re-fetched here.
+ * to the session doc for the new device to pick up. `session` comes from
+ * findLinkSession(), so its code secret is the one the user typed in.
+ * `identityPrivateKey` is this device's own already-unlocked key — from
+ * useMyIdentityKey(), not re-fetched here.
  */
 export async function completeLinkSession(
   uid: string,
-  sessionId: string,
-  newDeviceEphemeralPublicKeyJwk: JsonWebKey,
+  session: PendingLinkSession,
   identityPrivateKey: CryptoKey,
 ): Promise<void> {
   const theirEphemeralPublicKey = await importEphemeralPublicKey(
-    newDeviceEphemeralPublicKeyJwk,
+    session.newDeviceEphemeralPublicKey,
   );
   const myEphemeralKeyPair = await generateEphemeralKeyPair();
   const handshakeKey = await deriveHandshakeKey(
     myEphemeralKeyPair.privateKey,
     theirEphemeralPublicKey,
-    sessionId,
+    session.codeSecret,
+    session.sessionId,
   );
 
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -242,7 +357,7 @@ export async function completeLinkSession(
   );
 
   await setDoc(
-    linkSessionRef(uid, sessionId),
+    linkSessionRef(uid, session.sessionId),
     {
       status: 'ready',
       primaryDeviceEphemeralPublicKey: myEphemeralPublicJwk,
@@ -260,8 +375,7 @@ export async function completeLinkSession(
  * its raw bytes never pass through JS at any point in this process.
  */
 export async function acceptLinkSession(
-  ephemeralKeyPair: CryptoKeyPair,
-  sessionId: string,
+  session: LinkSession,
   update: LinkSessionUpdate,
 ): Promise<CryptoKey> {
   if (
@@ -276,9 +390,10 @@ export async function acceptLinkSession(
     update.primaryDeviceEphemeralPublicKey,
   );
   const handshakeKey = await deriveHandshakeKey(
-    ephemeralKeyPair.privateKey,
+    session.ephemeralKeyPair.privateKey,
     theirEphemeralPublicKey,
-    sessionId,
+    session.codeSecret,
+    session.sessionId,
   );
 
   return crypto.subtle.unwrapKey(

@@ -150,11 +150,7 @@ export function useIdentityKeys(): IdentityKeysState {
 
         accepting = true;
         try {
-          const privateKey = await acceptLinkSession(
-            session.ephemeralKeyPair,
-            session.sessionId,
-            update,
-          );
+          const privateKey = await acceptLinkSession(session, update);
           const publicKey = await importPeerPublicKey(identity.publicKeyJwk);
           if (!(await privateKeyMatchesPublicKey(privateKey, publicKey))) {
             throw new Error('The linked key does not match the published key for this account.');

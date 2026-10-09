@@ -22,7 +22,7 @@ Read this before you rely on WeakChat for anything sensitive.
 - Every message gets a fresh 12-byte IV. The conversation id and sender id are authenticated with it, so a ciphertext cannot be replayed in another chat or under another sender.
 - Firestore only ever holds ciphertext for direct messages. The chat list shows a fixed placeholder for them, not the text.
 - Sending fails closed. If the other person has no published key, the message is not sent. There is no plaintext fallback, and the Firestore rules reject a plaintext message in a direct chat.
-- Linking a device sends the private key wrapped under a one-time ECDH secret. The new device checks the key it receives against the account's published public key before saving it.
+- Linking a device sends the private key wrapped under a one-time ECDH secret combined with the 16-character linking code. The code is never sent to Firestore, so a device that never saw it cannot unwrap the key, even if it can write to the account's data. The new device checks the key it receives against the account's published public key before saving it.
 
 ### What is not
 
@@ -86,7 +86,7 @@ If the project already has rules or indexes set in the console, compare them wit
 The rules worth knowing about:
 
 - A user's `publicKey` can be written once and never changed. Replacing it would make every existing direct message unreadable.
-- `users/{uid}/linkSessions` is readable and writable only by that account. Device linking relies on this.
+- `users/{uid}/linkSessions` is readable and writable only by that account, and a session can only go from pending to answered, once. The linked key's secrecy rests on the linking code, not on these rules.
 - Messages cannot be edited or deleted, and a direct chat only accepts encrypted messages.
 
 ## Commands

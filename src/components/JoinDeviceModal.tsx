@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useMyIdentityKey } from '@/context/IdentityContext';
 import { useAuth } from '@/context/AuthContext';
-import { completeLinkSession, findLinkSession } from '@/lib/crypto/deviceLink';
+import {
+  completeLinkSession,
+  findLinkSession,
+  formatLinkCode,
+  LINK_CODE_LENGTH,
+  normalizeLinkCode,
+} from '@/lib/crypto/deviceLink';
 import { Field } from './Field';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -22,8 +28,8 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
     e.preventDefault();
     if (!user) return;
 
-    const normalized = code.trim().toUpperCase();
-    if (!normalized) return;
+    const normalized = normalizeLinkCode(code);
+    if (normalized.length !== LINK_CODE_LENGTH) return;
 
     setStatus('linking');
     setErrorMessage('');
@@ -36,12 +42,7 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
         return;
       }
 
-      await completeLinkSession(
-        user.uid,
-        session.sessionId,
-        session.newDeviceEphemeralPublicKey,
-        privateKey,
-      );
+      await completeLinkSession(user.uid, session, privateKey);
       setStatus('done');
     } catch {
       setStatus('error');
@@ -70,9 +71,16 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
               id='link-code-input'
               label='Linking code'
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              // Shown in the same groups of four as on the other device. A
+              // pasted code keeps working whatever it was separated with.
+              onChange={(e) =>
+                setCode(
+                  formatLinkCode(
+                    normalizeLinkCode(e.target.value).slice(0, LINK_CODE_LENGTH),
+                  ),
+                )
+              }
               description="Enter the code shown on the device you're signing in on. Codes expire after 5 minutes."
-              maxLength={8}
               autoComplete='off'
               autoCapitalize='characters'
               autoCorrect='off'
@@ -80,7 +88,7 @@ export function JoinDeviceModal({ onClose }: JoinDeviceModalProps) {
               inputClassName='font-mono text-safety'
             />
             {status === 'error' && <Notice tone='danger'>{errorMessage}</Notice>}
-            <Button type='submit' block isLoading={status === 'linking'} disabled={code.trim().length < 4}>
+            <Button type='submit' block isLoading={status === 'linking'} disabled={normalizeLinkCode(code).length < LINK_CODE_LENGTH}>
               Link device
             </Button>
           </form>

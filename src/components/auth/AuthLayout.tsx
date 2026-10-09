@@ -8,7 +8,10 @@ export function AuthLayout() {
     <div className="relative flex min-h-dvh w-full flex-col items-center justify-center bg-surface px-4 py-12 text-ink">
       <AuthPattern />
       <main className="auth-clearing relative flex w-full max-w-[26rem] flex-col gap-6 p-6">
-        <p className="text-title text-ink">WeakChat</p>
+        <div className="flex items-center gap-3">
+          <img src="/favicon.svg" alt="" width={40} height={40} className="size-10" />
+          <p className="text-title text-ink">WeakChat</p>
+        </div>
         <Outlet />
         <p className="text-center text-footnote text-balance text-ink-muted">
           Direct messages are end-to-end encrypted. Group chats are not yet.

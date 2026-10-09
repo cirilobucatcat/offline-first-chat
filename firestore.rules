@@ -38,10 +38,29 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
-      // Device-linking handshakes. The crypto in deviceLink.ts assumes that
-      // nobody outside the account can read or write these.
-      match /linkSessions/{code} {
-        allow read, write: if isOwner(uid);
+      // Device-linking handshakes. Nobody outside the account can read or
+      // write these. Inside the account, a session is opened as 'pending' by
+      // the new device and answered once, with the wrapped key, by a device
+      // that already holds it; what the new device wrote cannot be changed.
+      // This is tidiness, not the protection: someone signed in as the owner
+      // can still delete a session and create another in its place. The
+      // linking code, which never reaches Firestore, is what stops them
+      // receiving the key (see deviceLink.ts).
+      match /linkSessions/{sessionId} {
+        allow read, delete: if isOwner(uid);
+
+        allow create: if isOwner(uid)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.keys().hasOnly(
+            ['status', 'newDeviceEphemeralPublicKey', 'createdAt', 'expiresAt']
+          );
+
+        allow update: if isOwner(uid)
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'ready'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['status', 'primaryDeviceEphemeralPublicKey', 'wrappedPrivateKey', 'wrappedPrivateKeyIv']
+          );
       }
     }
 

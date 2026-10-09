@@ -17,6 +17,7 @@ import { Icon } from '../ui/Icon';
 import { Notice } from '../ui/Notice';
 import { Popover, PopoverItem } from '../ui/Popover';
 import { useMyIdentityKey } from '@/context/IdentityContext';
+import { AuthPattern } from '@/components/auth/AuthPattern';
 import { useChatPreferences } from '@/context/ChatPreferencesContext';
 import { ChatHeader } from './ChatHeader';
 import { Composer } from './Composer';
@@ -211,21 +212,24 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         }
       />
 
-      {/* Focusable, so the thread can be scrolled from the keyboard. */}
-      <div
-        tabIndex={0}
-        role='region'
-        aria-label='Messages'
-        className='wc-scroll focus-ring-inset flex-1 overflow-y-auto px-3 pb-3'
-      >
-        <MessageThread
-          conversation={conversation}
-          messages={messages}
-          myUid={myUid}
-          offline={offline}
-          hour12={timestampFormat === '12h'}
-        />
-        <div ref={bottomRef} />
+      <div className='relative flex min-h-0 flex-1 flex-col'>
+        <AuthPattern />
+        {/* Focusable, so the thread can be scrolled from the keyboard. */}
+        <div
+          tabIndex={0}
+          role='region'
+          aria-label='Messages'
+          className='wc-scroll focus-ring-inset relative flex-1 overflow-y-auto px-3 pb-3'
+        >
+          <MessageThread
+            conversation={conversation}
+            messages={messages}
+            myUid={myUid}
+            offline={offline}
+            hour12={timestampFormat === '12h'}
+          />
+          <div ref={bottomRef} />
+        </div>
       </div>
       <p ref={liveRef} aria-live='polite' className='sr-only' />
 

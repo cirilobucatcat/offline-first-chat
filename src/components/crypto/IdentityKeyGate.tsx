@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useIdentityKeys } from '@/hooks/userIdentityKeys';
 import { IdentityKeyProvider } from '@/context/IdentityContext';
 import { logOut } from '@/lib/account';
+import { formatLinkCode } from '@/lib/crypto/deviceLink';
 import { Button } from '../ui/Button';
 import { LoadingScreen } from '../ui/LoadingScreen';
 import { Notice } from '../ui/Notice';
@@ -97,7 +98,7 @@ function NeedsLinkScreen({
               className='rounded-md bg-surface-fill px-5 py-3 font-mono text-safety text-ink select-all'
               aria-label={`Linking code: ${code.split('').join(' ')}`}
             >
-              {code}
+              {formatLinkCode(code)}
             </p>
             <Button
               variant='secondary'

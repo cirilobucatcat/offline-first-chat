@@ -84,8 +84,10 @@ Generating a key for an account that already has a published one silently breaks
 
 ### Device linking
 
-`src/lib/crypto/deviceLink.ts` moves the private key to a new device. The new device writes a pending session under `users/{uid}/linkSessions/{code}` and shows the 8-character code. An existing device enters it in Settings, wraps the key under an ephemeral ECDH secret, and writes it back. Only the wrapped key ever reaches Firestore.
+`src/lib/crypto/deviceLink.ts` moves the private key to a new device. The new device shows a 16-character code and writes a pending session under `users/{uid}/linkSessions/{sessionId}`. An existing device enters the code in Settings, wraps the key under an ephemeral ECDH secret combined with a secret derived from the code, and writes it back. Only the wrapped key ever reaches Firestore.
 
+- **The code is the secret that authenticates the handshake.** It is never written to Firestore. The session id and the code secret are both derived from it with PBKDF2 and then HKDF, salted with the uid. Never use the code as the document id, store it, shorten it, or drop it from the key derivation: any of those lets someone who can write the session doc receive the identity key.
+- Both devices must run a build with the same derivation. A device on an older build cannot link with a newer one; the code reads as not valid.
 - A code lasts five minutes. `useIdentityKeys` marks it expired and deletes the session; `refresh` starts a new one. `cancel` deletes the session and must be called before signing out, while the device can still write.
 - Before saving a linked key, the new device checks it against the published public key with `privateKeyMatchesPublicKey`. A mismatch is an error, and nothing is saved.
 
@@ -94,13 +96,13 @@ Generating a key for an account that already has a published one silently breaks
 ### Firestore model
 
 - `users/{uid}`: `name`, `nameLower` (prefix search), `email`, `initials`, `publicKey` (JWK)
-- `users/{uid}/devices/{deviceId}` and `users/{uid}/linkSessions/{code}`
+- `users/{uid}/devices/{deviceId}` and `users/{uid}/linkSessions/{sessionId}`
 - `conversations/{id}` and `conversations/{id}/messages/{id}`
 
 Security rules are in `firestore.rules`. The composite index and the TTL policy on `linkSessions.expiresAt` are in `firestore.indexes.json`, and `firebase.json` points the Firebase CLI at both. They take effect only when deployed, so the console can differ from the repo. Never deploy them yourself; that is the user's step.
 
 - When a change adds a new read or write, update `firestore.rules` in the same change.
-- The crypto code assumes rules that restrict `users/{uid}/linkSessions` to the account owner.
+- The rules restrict `users/{uid}/linkSessions` to the account owner, and let a session go only from `pending` to `ready`, once. The linked key's secrecy rests on the linking code, not on these rules.
 - The rules make `publicKey` write-once, make messages immutable, and reject a plaintext message in a direct chat.
 - `deleteAccount` in `src/lib/account.ts` deletes `users/{uid}` with its devices and link sessions, then the Auth user, then the local key and cache. It does not delete conversations or messages, and the UI must not say that it does.
 
