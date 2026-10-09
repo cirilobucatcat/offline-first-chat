@@ -3,6 +3,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
     type ReactNode,
 } from 'react';
@@ -74,8 +75,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const value = useMemo(
+        () => ({ preference, resolvedTheme, setPreference }),
+        [preference, resolvedTheme, setPreference],
+    );
+
     return (
-        <ThemeContext.Provider value={{ preference, resolvedTheme, setPreference }}>
+        <ThemeContext.Provider value={value}>
             {children}
         </ThemeContext.Provider>
     );

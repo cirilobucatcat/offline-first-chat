@@ -12,11 +12,27 @@ import { db } from '../firebase';
 
 const conversationKeyCache = new Map<string, CryptoKey>();
 const peerPublicKeyCache = new Map<string, CryptoKey>();
+// In-flight lookups, so concurrent callers (a thread of messages decrypting at
+// once) share one Firestore read and one derive. An entry is removed as soon
+// as it settles, so a missing key or a failure is retried on the next call.
+const pendingConversationKeys = new Map<string, Promise<CryptoKey | null>>();
+const pendingPeerKeys = new Map<string, Promise<CryptoKey | null>>();
 
-async function fetchPeerPublicKey(peerUid: string): Promise<CryptoKey | null> {
+function fetchPeerPublicKey(peerUid: string): Promise<CryptoKey | null> {
     const cached = peerPublicKeyCache.get(peerUid);
-    if (cached) return cached;
+    if (cached) return Promise.resolve(cached);
 
+    const pending = pendingPeerKeys.get(peerUid);
+    if (pending) return pending;
+
+    const promise = loadPeerPublicKey(peerUid).finally(() => {
+        pendingPeerKeys.delete(peerUid);
+    });
+    pendingPeerKeys.set(peerUid, promise);
+    return promise;
+}
+
+async function loadPeerPublicKey(peerUid: string): Promise<CryptoKey | null> {
     const snap = await getDoc(doc(db, 'users', peerUid));
     const jwk = snap.exists() ? (snap.data().publicKey as JsonWebKey | undefined) : undefined;
     if (!jwk) return null; // peer's device hasn't completed identity key setup yet
@@ -32,14 +48,29 @@ async function fetchPeerPublicKey(peerUid: string): Promise<CryptoKey | null> {
  * public key yet — callers should treat that as "can't send/read encrypted
  * messages here yet," not fall back to plaintext.
  */
-export async function getConversationKey(
+export function getConversationKey(
     conversationId: string,
     myPrivateKey: CryptoKey,
     peerUid: string
 ): Promise<CryptoKey | null> {
     const cached = conversationKeyCache.get(conversationId);
-    if (cached) return cached;
+    if (cached) return Promise.resolve(cached);
 
+    const pending = pendingConversationKeys.get(conversationId);
+    if (pending) return pending;
+
+    const promise = deriveForConversation(conversationId, myPrivateKey, peerUid).finally(() => {
+        pendingConversationKeys.delete(conversationId);
+    });
+    pendingConversationKeys.set(conversationId, promise);
+    return promise;
+}
+
+async function deriveForConversation(
+    conversationId: string,
+    myPrivateKey: CryptoKey,
+    peerUid: string
+): Promise<CryptoKey | null> {
     const peerPublicKey = await fetchPeerPublicKey(peerUid);
     if (!peerPublicKey) return null;
 
@@ -117,4 +148,6 @@ export async function decryptMessageForDisplay(
 export function clearConversationKeyCache(): void {
     conversationKeyCache.clear();
     peerPublicKeyCache.clear();
+    pendingConversationKeys.clear();
+    pendingPeerKeys.clear();
 }

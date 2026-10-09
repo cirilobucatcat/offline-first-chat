@@ -7,6 +7,7 @@ import type { Conversation } from '@/types/chats';
 import { ConversationList } from '@/components/chats/ConversationList';
 import { MessageArea } from '@/components/chats/MessageArea';
 import { NewGroupModal } from '@/components/chats/NewGroupModal';
+import { Notice } from '@/components/ui/Notice';
 
 type GroupModalState =
   | { mode: 'create'; initialSelected: ParticipantSeed[] }
@@ -19,6 +20,13 @@ export default function Chats() {
   const [groupModal, setGroupModal] = useState<GroupModalState | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openError) return;
+    const timeout = setTimeout(() => setOpenError(null), 6000);
+    return () => clearTimeout(timeout);
+  }, [openError]);
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
 
@@ -52,8 +60,14 @@ export default function Chats() {
 
   async function handleStartConversation(other: UserProfile) {
     if (!me) return;
-    const id = await createOrGetConversation(me, { uid: other.uid, name: other.name, initials: other.initials });
-    setActiveId(id);
+    setOpenError(null);
+    try {
+      const id = await createOrGetConversation(me, { uid: other.uid, name: other.name, initials: other.initials });
+      setActiveId(id);
+    } catch (err) {
+      console.error('Could not open conversation', err);
+      setOpenError("Couldn't open that chat. Try again.");
+    }
   }
 
   function openNewGroup() {
@@ -110,6 +124,13 @@ export default function Chats() {
         mobileHidden={!activeId}
         paneRef={threadRef}
       />
+      {openError && (
+        <div className="fixed inset-x-4 top-4 z-50 mx-auto max-w-sm">
+          <Notice tone="danger" className="shadow-float">
+            {openError}
+          </Notice>
+        </div>
+      )}
       {groupModal && user && (
         <NewGroupModal
           mode={groupModal.mode}

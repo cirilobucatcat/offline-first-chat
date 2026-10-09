@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 export type TimestampFormat = '12h' | '24h';
 
@@ -56,8 +56,13 @@ export function ChatPreferencesProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const value = useMemo(
+        () => ({ timestampFormat, setTimestampFormat, readReceipts, setReadReceipts }),
+        [timestampFormat, setTimestampFormat, readReceipts, setReadReceipts],
+    );
+
     return (
-        <ChatPreferencesContext.Provider value={{ timestampFormat, setTimestampFormat, readReceipts, setReadReceipts }}>
+        <ChatPreferencesContext.Provider value={value}>
             {children}
         </ChatPreferencesContext.Provider>
     );

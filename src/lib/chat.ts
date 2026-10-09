@@ -168,14 +168,20 @@ export async function markConversationRead(
   await updateDoc(doc(db, 'conversations', conversationId), updates);
 }
 
-export function isLastMessageReadByAll(conversation: Conversation): boolean {
-  if (!conversation.lastMessageAt || !conversation.lastMessageSenderId) return false;
-  const others = conversation.participants.filter((p) => p !== conversation.lastMessageSenderId);
+function isReadByAll(conversation: Conversation, senderUid: string, at: Timestamp | null | undefined): boolean {
+  if (!at) return false;
+  const others = conversation.participants.filter((p) => p !== senderUid);
   if (others.length === 0) return false;
+  const atMs = at.toMillis();
   return others.every((uid) => {
     const lastRead = conversation.lastRead?.[uid];
-    return lastRead && lastRead.toMillis() >= conversation.lastMessageAt!.toMillis();
+    return !!lastRead && lastRead.toMillis() >= atMs;
   });
+}
+
+export function isLastMessageReadByAll(conversation: Conversation): boolean {
+  if (!conversation.lastMessageSenderId) return false;
+  return isReadByAll(conversation, conversation.lastMessageSenderId, conversation.lastMessageAt);
 }
 
 export function isMessageReadByAll<T extends { createdAt: Timestamp | null | undefined }>(
@@ -183,13 +189,7 @@ export function isMessageReadByAll<T extends { createdAt: Timestamp | null | und
   senderUid: string,
   message: T,
 ): boolean {
-  if (!message.createdAt) return false;
-  const others = conversation.participants.filter((p) => p !== senderUid);
-  if (others.length === 0) return false;
-  return others.every((uid) => {
-    const lastRead = conversation.lastRead?.[uid];
-    return lastRead && lastRead.toMillis() >= message.createdAt!.toMillis();
-  });
+  return isReadByAll(conversation, senderUid, message.createdAt);
 }
 
 /**
@@ -229,9 +229,20 @@ export function getConversationTitle(conversation: Conversation, currentUid: str
   return getOtherParticipant(conversation, currentUid)?.name ?? 'Unknown';
 }
 
+const timeFormatters = new Map<boolean, Intl.DateTimeFormat>();
+
+function timeFormatter(hour12: boolean): Intl.DateTimeFormat {
+  let formatter = timeFormatters.get(hour12);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit', hour12 });
+    timeFormatters.set(hour12, formatter);
+  }
+  return formatter;
+}
+
 /** @param hour12 Defaults to true, matching prior (locale-default) behavior for existing callers. */
 export function formatMessageTime(timestamp: Timestamp, hour12 = true): string {
-  return timestamp.toDate().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12 });
+  return timeFormatter(hour12).format(timestamp.toDate());
 }
 
 export function formatRelativeTime(timestamp: Timestamp | null | undefined, hour12 = true): string {
@@ -239,13 +250,21 @@ export function formatRelativeTime(timestamp: Timestamp | null | undefined, hour
   const date = timestamp.toDate();
   const now = new Date();
   if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12 });
+    return timeFormatter(hour12).format(date);
   }
   // The six days before today read as a weekday; anything older as a date.
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
   if (date >= weekStart && date < now) return date.toLocaleDateString([], { weekday: 'short' });
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString([], sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+/** Where a message sits in its run of consecutive messages from one sender. */
+export function runPosition(index: number, length: number): 'single' | 'first' | 'middle' | 'last' {
+  if (length <= 1) return 'single';
+  if (index <= 0) return 'first';
+  if (index >= length - 1) return 'last';
+  return 'middle';
 }
 
 const RUN_GAP_MS = 5 * 60 * 1000;

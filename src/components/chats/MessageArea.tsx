@@ -1,12 +1,7 @@
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import {
   sendMessage,
   markConversationRead,
-  isMessageReadByAll,
-  formatMessageTime,
-  getDeliveryStatus,
-  groupMessagesByDay,
-  groupMessagesIntoRuns,
   getConversationTitle,
   getOtherParticipant,
   PeerKeyMissingError,
@@ -14,7 +9,6 @@ import {
 } from '@/lib/chat';
 import { cn } from '@/lib/helpers';
 import type { Conversation } from '@/types/chats';
-import { Avatar } from '../Avatar';
 import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -26,8 +20,7 @@ import { useMyIdentityKey } from '@/context/IdentityContext';
 import { useChatPreferences } from '@/context/ChatPreferencesContext';
 import { ChatHeader } from './ChatHeader';
 import { Composer } from './Composer';
-import { MessageBubble } from './MessageBubble';
-import { SystemNotice } from './SystemNotice';
+import { MessageThread } from './MessageThread';
 
 interface MessageAreaProps {
   conversation: Conversation | null;
@@ -39,6 +32,58 @@ interface MessageAreaProps {
   paneRef?: Ref<HTMLElement>;
 }
 
+type SendError = { conversationId: string; kind: 'no-key' | 'failed' } | null;
+
+interface ThreadComposerProps {
+  conversation: Conversation;
+  myUid: string | null;
+  privateKey: CryptoKey;
+  offline: boolean;
+  held: boolean;
+  notice: ReactNode;
+  onSendError: (error: SendError) => void;
+}
+
+/** Owns the draft, so typing re-renders only the composer and not the thread. */
+function ThreadComposer({ conversation, myUid, privateKey, offline, held, notice, onSendError }: ThreadComposerProps) {
+  const [draft, setDraft] = useState('');
+
+  async function handleSend() {
+    if (!myUid || !draft.trim() || held) return;
+    const text = draft;
+    setDraft('');
+    onSendError(null);
+    try {
+      await sendMessage(conversation.id, myUid, conversation.participants, text, {
+        isGroup: conversation.isGroup,
+        myPrivateKey: privateKey,
+      });
+    } catch (err) {
+      console.error('Failed to send message', err);
+      onSendError({
+        conversationId: conversation.id,
+        kind: err instanceof PeerKeyMissingError ? 'no-key' : 'failed',
+      });
+      // Put the text back, unless something new was typed in the meantime.
+      setDraft((current) => current || text);
+    }
+  }
+
+  return (
+    <Composer
+      value={draft}
+      onChange={(value) => {
+        setDraft(value);
+        onSendError(null);
+      }}
+      onSend={handleSend}
+      offline={offline}
+      held={held}
+      notice={notice}
+    />
+  );
+}
+
 export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWithUser, mobileHidden = false, paneRef }: MessageAreaProps) {
   const { user } = useAuth();
   const { privateKey } = useMyIdentityKey();
@@ -48,9 +93,8 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const networkStatus = useNetworkStatus();
   // `other` is null in a group, so groups never subscribe.
   const peerKeyStatus = usePeerKeyStatus(other?.uid ?? null);
-  const [draft, setDraft] = useState('');
   // Kept with the conversation it happened in, so it doesn't follow you to another chat.
-  const [sendError, setSendError] = useState<{ conversationId: string; kind: 'no-key' | 'failed' } | null>(null);
+  const [sendError, setSendError] = useState<SendError>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const title = conversation && user ? getConversationTitle(conversation, user.uid) : '';
 
@@ -60,7 +104,9 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   useEffect(() => {
     if (!conversationId || !myUid) return;
     if (myUnread === 0) return;
-    markConversationRead(conversationId, myUid, { sendReadReceipt: readReceipts });
+    markConversationRead(conversationId, myUid, { sendReadReceipt: readReceipts }).catch((err) => {
+      console.error('Failed to mark conversation as read', err);
+    });
   }, [conversationId, myUnread, myUid, readReceipts]);
 
   useEffect(() => {
@@ -109,27 +155,6 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   const sendErrorKind = sendError && sendError.conversationId === conversationId ? sendError.kind : null;
   const noKeyNotice = `${title} hasn't set up encryption yet. You can send messages once they have.`;
 
-  async function handleSend() {
-    if (!conversation || !user || !draft.trim() || sendHeld) return;
-    const text = draft;
-    setDraft('');
-    setSendError(null);
-    try {
-      await sendMessage(conversation.id, user.uid, conversation.participants, text, {
-        isGroup: conversation.isGroup,
-        myPrivateKey: privateKey,
-      });
-    } catch (err) {
-      console.error('Failed to send message', err);
-      setSendError({
-        conversationId: conversation.id,
-        kind: err instanceof PeerKeyMissingError ? 'no-key' : 'failed',
-      });
-      // Put the text back, unless something new was typed in the meantime.
-      setDraft((current) => current || text);
-    }
-  }
-
   if (!conversation) {
     return (
       <main
@@ -144,7 +169,6 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
 
   const offline = networkStatus === 'offline';
   const memberCount = conversation.participants.length;
-  const days = groupMessagesByDay(messages);
 
   const composerNotice = sendHeld ? (
     <p role='status' className='flex items-start gap-2 px-4 pt-2 text-footnote text-ink-muted'>
@@ -194,66 +218,25 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         aria-label='Messages'
         className='wc-scroll focus-ring-inset flex-1 overflow-y-auto px-3 pb-3'
       >
-        {/* Said once, at the top. Groups are not encrypted, so they say that instead. */}
-        {conversation.isGroup ? (
-          <SystemNotice kind='info'>Messages in this group are not end-to-end encrypted.</SystemNotice>
-        ) : (
-          <SystemNotice kind='encryption'>
-            Messages in this chat stay between you and the people in it. Not even WeakChat can read them.
-          </SystemNotice>
-        )}
-        {days.map((day, di) => (
-          <div key={`${day.label}-${di}`}>
-            <SystemNotice kind='date'>{day.label}</SystemNotice>
-            {/* Bubbles stay direct children of the day, because a bubble's spacing depends on its siblings. */}
-            {groupMessagesIntoRuns(day.items).flatMap((run) =>
-              run.map((m, i) => {
-                const mine = m.senderId === user?.uid;
-                const position = run.length === 1 ? 'single' : i === 0 ? 'first' : i === run.length - 1 ? 'last' : 'middle';
-                const groupIncoming = conversation.isGroup && !mine;
-                const senderName = conversation.participantInfo[m.senderId]?.name ?? 'Unknown';
-                return (
-                  <MessageBubble
-                    key={m.id}
-                    direction={mine ? 'out' : 'in'}
-                    position={position}
-                    time={m.createdAt ? formatMessageTime(m.createdAt, timestampFormat === '12h') : undefined}
-                    dateTime={m.createdAt?.toDate().toISOString()}
-                    speaker={mine ? 'You' : senderName}
-                    status={
-                      mine
-                        ? getDeliveryStatus({
-                            pending: !m.createdAt,
-                            read: isMessageReadByAll(conversation, m.senderId, m),
-                            offline,
-                          })
-                        : undefined
-                    }
-                    sender={groupIncoming ? senderName : undefined}
-                    avatar={groupIncoming ? <Avatar name={senderName} id={m.senderId} size='sm' /> : undefined}
-                    indent={groupIncoming}
-                  >
-                    {m.displayText}
-                  </MessageBubble>
-                );
-              }),
-            )}
-          </div>
-        ))}
+        <MessageThread
+          conversation={conversation}
+          messages={messages}
+          myUid={myUid}
+          offline={offline}
+          hour12={timestampFormat === '12h'}
+        />
         <div ref={bottomRef} />
       </div>
       <p ref={liveRef} aria-live='polite' className='sr-only' />
 
-      <Composer
-        value={draft}
-        onChange={(value) => {
-          setDraft(value);
-          setSendError(null);
-        }}
-        onSend={handleSend}
+      <ThreadComposer
+        conversation={conversation}
+        myUid={myUid}
+        privateKey={privateKey}
         offline={offline}
         held={sendHeld}
         notice={composerNotice}
+        onSendError={setSendError}
       />
     </main>
   );

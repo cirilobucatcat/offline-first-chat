@@ -56,12 +56,8 @@ export function useConversations(uid: string | null) {
       if (previousById) {
         for (const convo of next) {
           const prev = previousById.get(convo.id);
-          const prevMs = toMillisOrNull(
-            prev?.lastMessageAt as Timestamp | null,
-          );
-          const nextMs = toMillisOrNull(
-            convo.lastMessageAt as Timestamp | null,
-          );
+          const prevMs = toMillisOrNull(prev?.lastMessageAt);
+          const nextMs = toMillisOrNull(convo.lastMessageAt);
 
           const isNewMessage = nextMs !== null && nextMs !== prevMs;
           const isFromSomeoneElse =

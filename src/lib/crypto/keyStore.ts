@@ -59,6 +59,8 @@ export async function getStoredKeyPair(
       resolve((request.result as StoredIdentityKeyPair | undefined) ?? null);
     };
     request.onerror = () => reject(request.error);
+    tx.oncomplete = () => database.close();
+    tx.onabort = () => database.close();
   });
 }
 
@@ -67,8 +69,12 @@ export async function saveKeyPair(entry: StoredIdentityKeyPair): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = database.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(entry);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => {
+      database.close();
+      resolve();
+    };
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => database.close();
   });
 }
 
@@ -78,7 +84,11 @@ export async function deleteStoredKeyPair(uid: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = database.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(uid);
-    tx.oncomplete = () => resolve();
+    tx.oncomplete = () => {
+      database.close();
+      resolve();
+    };
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => database.close();
   });
 }

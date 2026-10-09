@@ -1,37 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import {
+  NOTIFICATION_PREFS_KEY,
+  readNotificationPrefs,
+  type NotificationPreferences,
+} from '@/lib/notifications';
 
-export interface NotificationPreferences {
-  soundEnabled: boolean;
-  badgeEnabled: boolean;
-}
-
-const STORAGE_KEY = 'weakchat:notification-prefs';
-
-const DEFAULT_PREFS: NotificationPreferences = {
-  soundEnabled: true,
-  badgeEnabled: true,
-};
-
-function readPrefs(): NotificationPreferences {
-  if (typeof window === 'undefined') return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw);
-    return {
-      soundEnabled:
-        typeof parsed.soundEnabled === 'boolean'
-          ? parsed.soundEnabled
-          : DEFAULT_PREFS.soundEnabled,
-      badgeEnabled:
-        typeof parsed.badgeEnabled === 'boolean'
-          ? parsed.badgeEnabled
-          : DEFAULT_PREFS.badgeEnabled,
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
+export type { NotificationPreferences };
 
 /**
  * Local, per-device notification preferences. Deliberately NOT synced via
@@ -39,11 +13,11 @@ function readPrefs(): NotificationPreferences {
  * oversight.
  */
 export function useNotificationPreferences() {
-  const [prefs, setPrefs] = useState<NotificationPreferences>(readPrefs);
+  const [prefs, setPrefs] = useState<NotificationPreferences>(readNotificationPrefs);
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+      window.localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs));
     } catch {
       // Private browsing / quota exceeded — preference just won't persist
       // across reloads. Not worth surfacing an error for.
@@ -53,7 +27,7 @@ export function useNotificationPreferences() {
   // Stay in sync if changed in another tab of the same browser.
   useEffect(() => {
     function handleStorage(e: StorageEvent) {
-      if (e.key === STORAGE_KEY) setPrefs(readPrefs());
+      if (e.key === NOTIFICATION_PREFS_KEY) setPrefs(readNotificationPrefs());
     }
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);

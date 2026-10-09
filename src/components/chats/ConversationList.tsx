@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   DIRECT_MESSAGE_PREVIEW,
@@ -49,10 +49,22 @@ export function ConversationList({
   // for what is typed now arrive, the search is still running.
   const [peopleSearch, setPeopleSearch] = useState<{ query: string; results: UserProfile[] } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const uid = user?.uid;
   const trimmedQuery = query.trim().toLowerCase();
   const searchSettled = peopleSearch?.query === trimmedQuery;
-  const userResults = trimmedQuery && searchSettled ? peopleSearch.results : [];
-  const searching = Boolean(user && trimmedQuery) && !searchSettled;
+  const foundPeople = trimmedQuery && searchSettled ? peopleSearch.results : null;
+  // Hide people who already have a direct chat with this user.
+  const userResults = useMemo(() => {
+    if (!foundPeople || !user) return [];
+    const existingUids = new Set(
+      conversations
+        .filter((c) => !c.isGroup)
+        .map((c) => c.participants.find((p) => p !== user.uid))
+        .filter(Boolean) as string[],
+    );
+    return foundPeople.filter((u) => !existingUids.has(u.uid));
+  }, [foundPeople, conversations, user]);
+  const searching = Boolean(uid && trimmedQuery) && !searchSettled;
 
   const filteredConversations = conversations.filter((c) => {
     if (!user || !trimmedQuery) return true;
@@ -60,19 +72,12 @@ export function ConversationList({
   });
 
   useEffect(() => {
-    if (!user || !trimmedQuery) return;
+    if (!uid || !trimmedQuery) return;
     let cancelled = false;
     const timeout = setTimeout(async () => {
       let results: UserProfile[] = [];
       try {
-        const found = await searchUsers(trimmedQuery, user.uid);
-        const existingUids = new Set(
-          conversations
-            .filter((c) => !c.isGroup)
-            .map((c) => c.participants.find((p) => p !== user.uid))
-            .filter(Boolean) as string[],
-        );
-        results = found.filter((u) => !existingUids.has(u.uid));
+        results = await searchUsers(trimmedQuery, uid);
       } catch (err) {
         console.error('User search failed', err);
       }
@@ -83,7 +88,7 @@ export function ConversationList({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [trimmedQuery, user, conversations]);
+  }, [trimmedQuery, uid]);
 
   function handleStartConversation(u: UserProfile) {
     onStartConversation(u);

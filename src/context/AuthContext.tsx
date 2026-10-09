@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -22,8 +22,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
+  const value = useMemo(() => ({ user, loading }), [user, loading]);
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

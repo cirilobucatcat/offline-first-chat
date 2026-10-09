@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { decryptMessageForDisplay } from '@/lib/crypto/conversationKeys';
@@ -54,20 +54,34 @@ export function useMessages(conversationId: string | null, peerUid: string | nul
   useEffect(() => {
     if (!conversationId || !peerUid) return;
 
+    // The set is replaced when the conversation changes, so a result that
+    // arrives for a conversation that was left sees a different set and is dropped.
+    const inFlight = decryptingRef.current;
     rawMessages.forEach((msg) => {
-      if (msg.encrypted !== true || decryptingRef.current.has(msg.id)) return;
-      decryptingRef.current.add(msg.id);
+      if (msg.encrypted !== true || inFlight.has(msg.id)) return;
+      inFlight.add(msg.id);
 
-      decryptMessageForDisplay(msg, conversationId, privateKey, peerUid).then((text) => {
-        setDecrypted((prev) => ({ ...prev, [msg.id]: text }));
-      });
+      decryptMessageForDisplay(msg, conversationId, privateKey, peerUid)
+        .then((text) => {
+          if (decryptingRef.current !== inFlight) return;
+          setDecrypted((prev) => ({ ...prev, [msg.id]: text }));
+        })
+        .catch((err) => {
+          console.error('Failed to decrypt message', err);
+          // Let the next snapshot try this message again.
+          inFlight.delete(msg.id);
+        });
     });
   }, [rawMessages, conversationId, peerUid, privateKey]);
 
-  const messages: DisplayMessage[] = rawMessages.map((msg) => ({
-    ...msg,
-    displayText: msg.encrypted ? (decrypted[msg.id] ?? '') : msg.text,
-  }));
+  const messages = useMemo<DisplayMessage[]>(
+    () =>
+      rawMessages.map((msg) => ({
+        ...msg,
+        displayText: msg.encrypted ? (decrypted[msg.id] ?? '') : msg.text,
+      })),
+    [rawMessages, decrypted],
+  );
 
   return { messages, loading };
 }

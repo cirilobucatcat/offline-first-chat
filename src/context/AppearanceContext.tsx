@@ -3,6 +3,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
     type ReactNode,
 } from 'react';
@@ -77,10 +78,13 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const value = useMemo(
+        () => ({ textSize, setTextSize, reduceMotion, setReduceMotion }),
+        [textSize, setTextSize, reduceMotion, setReduceMotion],
+    );
+
     return (
-        <AppearanceContext.Provider
-            value={{ textSize, setTextSize, reduceMotion, setReduceMotion }}
-        >
+        <AppearanceContext.Provider value={value}>
             {children}
         </AppearanceContext.Provider>
     );

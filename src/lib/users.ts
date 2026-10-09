@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, setDoc, query, where, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, query, where, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 
 export interface UserProfile {
@@ -38,9 +38,4 @@ export async function searchUsers(queryText: string, excludeUid: string): Promis
   return snapshot.docs
     .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
     .filter((u) => u.uid !== excludeUid);
-}
-
-export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const snap = await getDoc(doc(db, 'users', uid));
-  return snap.exists() ? ({ uid: snap.id, ...snap.data() } as UserProfile) : null;
 }

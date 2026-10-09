@@ -1,18 +1,34 @@
-const STORAGE_KEY = 'weakchat:notification-prefs';
+export interface NotificationPreferences {
+  soundEnabled: boolean;
+  badgeEnabled: boolean;
+}
+
+export const NOTIFICATION_PREFS_KEY = 'weakchat:notification-prefs';
 const BASE_TITLE = 'WeakChat';
 
-function readPrefs(): { soundEnabled: boolean; badgeEnabled: boolean } {
-  if (typeof window === 'undefined') return { soundEnabled: true, badgeEnabled: true };
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
+  soundEnabled: true,
+  badgeEnabled: true,
+};
+
+export function readNotificationPrefs(): NotificationPreferences {
+  if (typeof window === 'undefined') return DEFAULT_NOTIFICATION_PREFS;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { soundEnabled: true, badgeEnabled: true };
+    const raw = window.localStorage.getItem(NOTIFICATION_PREFS_KEY);
+    if (!raw) return DEFAULT_NOTIFICATION_PREFS;
     const parsed = JSON.parse(raw);
     return {
-      soundEnabled: typeof parsed.soundEnabled === 'boolean' ? parsed.soundEnabled : true,
-      badgeEnabled: typeof parsed.badgeEnabled === 'boolean' ? parsed.badgeEnabled : true,
+      soundEnabled:
+        typeof parsed?.soundEnabled === 'boolean'
+          ? parsed.soundEnabled
+          : DEFAULT_NOTIFICATION_PREFS.soundEnabled,
+      badgeEnabled:
+        typeof parsed?.badgeEnabled === 'boolean'
+          ? parsed.badgeEnabled
+          : DEFAULT_NOTIFICATION_PREFS.badgeEnabled,
     };
   } catch {
-    return { soundEnabled: true, badgeEnabled: true };
+    return DEFAULT_NOTIFICATION_PREFS;
   }
 }
 
@@ -36,7 +52,7 @@ function getAudioContext(): AudioContext | null {
  */
 export function playMessageSound() {
   if (typeof document === 'undefined' || document.visibilityState === 'visible') return;
-  if (!readPrefs().soundEnabled) return;
+  if (!readNotificationPrefs().soundEnabled) return;
 
   const ctx = getAudioContext();
   if (!ctx) return;
@@ -74,7 +90,7 @@ export function playMessageSound() {
  */
 export function updateTabBadge(unreadCount: number) {
   if (typeof document === 'undefined') return;
-  if (!readPrefs().badgeEnabled || unreadCount <= 0) {
+  if (!readNotificationPrefs().badgeEnabled || unreadCount <= 0) {
     document.title = BASE_TITLE;
     return;
   }
