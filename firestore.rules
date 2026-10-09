@@ -99,12 +99,23 @@ service cloud.firestore {
             : isDirectIdFor(request.resource.data.participants)
         );
 
+      // Typing status is a map of uid to the time of that person's last
+      // announcement. A participant can set or clear only their own entry,
+      // so nobody can show someone else as typing.
+      function changesOnlyOwnTyping() {
+        return request.resource.data.get('typing', {})
+          .diff(resource.data.get('typing', {}))
+          .affectedKeys()
+          .hasOnly([request.auth.uid]);
+      }
+
       // Participants update the summary fields (last message, unread counts,
-      // read receipts). A chat cannot change kind. Members can only be
-      // added, and only to a group.
+      // read receipts, typing status). A chat cannot change kind. Members
+      // can only be added, and only to a group.
       allow update: if signedIn()
         && request.auth.uid in resource.data.participants
         && isGroup(request.resource.data) == isGroup(resource.data)
+        && changesOnlyOwnTyping()
         && (
           request.resource.data.participants == resource.data.participants
           || (

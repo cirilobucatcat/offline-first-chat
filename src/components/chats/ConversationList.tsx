@@ -10,6 +10,7 @@ import {
 } from '../../lib/chat';
 import { searchUsers, type UserProfile } from '../../lib/users';
 import { cn } from '@/lib/helpers';
+import { formatTyping } from '@/lib/typing';
 import { useChatPreferences } from '@/context/ChatPreferencesContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import type { Conversation } from '@/types/chats';
@@ -22,6 +23,8 @@ import { SearchField } from '../ui/SearchField';
 
 interface ConversationListProps {
   conversations: Conversation[];
+  /** The uids typing in each conversation, by conversation id. */
+  typingByConversation: ReadonlyMap<string, string[]>;
   activeConversationId: string | null;
   onSelect: (id: string) => void;
   onStartConversation: (profile: UserProfile) => void;
@@ -33,6 +36,7 @@ interface ConversationListProps {
 
 export function ConversationList({
   conversations,
+  typingByConversation,
   activeConversationId,
   onSelect,
   onStartConversation,
@@ -140,6 +144,13 @@ export function ConversationList({
                 : c.participantInfo[c.lastMessageSenderId]?.name?.split(' ')[0] || undefined;
             // A direct message is never previewed, whatever an older version stored here.
             const preview = !c.lastMessage ? 'No messages yet' : c.isGroup ? c.lastMessage : DIRECT_MESSAGE_PREVIEW;
+            const typingUids = typingByConversation.get(c.id);
+            const typing = typingUids
+              ? formatTyping(
+                  typingUids.map((id) => c.participantInfo[id]?.name?.split(' ')[0] || 'Someone'),
+                  c.isGroup,
+                )
+              : undefined;
 
             return (
               <ChatListItem
@@ -159,6 +170,7 @@ export function ConversationList({
                       })
                     : undefined
                 }
+                typing={typing}
                 selected={c.id === activeConversationId}
                 chatId={c.id}
                 onClick={() => onSelect(c.id)}

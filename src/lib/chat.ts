@@ -8,6 +8,7 @@ import {
   Timestamp,
   arrayUnion,
   setDoc,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Conversation } from '@/types/chats';
@@ -106,6 +107,8 @@ export async function sendMessage(
   const updates: Record<string, unknown> = {
     lastMessageSenderId: senderId,
     lastMessageAt: serverTimestamp(),
+    // Cleared with the message, so the typing dots give way to it in one snapshot.
+    [`typing.${senderId}`]: deleteField(),
   };
   participantIds
     .filter((uid) => uid !== senderId)
@@ -166,6 +169,20 @@ export async function markConversationRead(
     updates[`lastRead.${uid}`] = serverTimestamp();
   }
   await updateDoc(doc(db, 'conversations', conversationId), updates);
+}
+
+/**
+ * Announces that `uid` is typing. Firestore queues a write made offline and
+ * replays it on reconnect, so call this only while online: typing is never
+ * queued or replayed.
+ */
+export async function setTyping(conversationId: string, uid: string) {
+  await updateDoc(doc(db, 'conversations', conversationId), { [`typing.${uid}`]: serverTimestamp() });
+}
+
+/** Safe to call offline: a clear that is replayed later changes nothing. */
+export async function clearTyping(conversationId: string, uid: string) {
+  await updateDoc(doc(db, 'conversations', conversationId), { [`typing.${uid}`]: deleteField() });
 }
 
 function isReadByAll(conversation: Conversation, senderUid: string, at: Timestamp | null | undefined): boolean {

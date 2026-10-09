@@ -22,6 +22,9 @@ function toMillisOrNull(ts: Timestamp | null | undefined): number | null {
 export function useConversations(uid: string | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  // When the latest snapshot arrived, on this device's clock. Typing entries
+  // are judged against it, because rendering cannot read the clock itself.
+  const [receivedAt, setReceivedAt] = useState(0);
 
   // Previous snapshot, keyed by conversation id — lets us tell a genuine
   // new incoming message apart from a read-receipt update, our own
@@ -79,13 +82,14 @@ export function useConversations(uid: string | null) {
       updateTabBadge(totalUnread);
 
       setConversations(next);
+      setReceivedAt(Date.now());
       setLoading(false);
     });
 
     return unsubscribe;
   }, [uid]);
 
-  return { conversations, loading };
+  return { conversations, loading, receivedAt };
 }
 
 export function getConversationId(uidA: string, uidB: string): string {

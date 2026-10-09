@@ -10,7 +10,7 @@ const twMerge = extendTailwindMerge({
       radius: ['bubble', 'sheet'],
       shadow: ['bubble', 'raised', 'float'],
       spacing: ['hit', 'row', 'bubble-max'],
-      animate: ['bubble-in', 'sheet-up', 'clock-hand'],
+      animate: ['bubble-in', 'sheet-up', 'clock-hand', 'typing-dot'],
     },
   },
 });

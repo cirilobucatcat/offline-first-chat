@@ -14,6 +14,8 @@ export interface Conversation {
   lastMessageAt: Timestamp | null;
   unreadCount: Record<string, number>;
   lastRead: Record<string, Timestamp>;
+  /** When each person last announced they were typing. null while this device's own write is pending. */
+  typing?: Record<string, Timestamp | null>;
   isGroup: boolean;
   groupName?: string;
   createdBy?: string;

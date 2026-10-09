@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { createOrGetConversation, useConversations } from '../hooks/useConversations';
+import { useTypingStatus } from '../hooks/useTypingStatus';
 import { addParticipantsToConversation, createGroupConversation, type ParticipantSeed } from '../lib/chat';
 import { getInitials, type UserProfile } from '../lib/users';
 import type { Conversation } from '@/types/chats';
@@ -15,7 +16,8 @@ type GroupModalState =
 
 export default function Chats() {
   const { user } = useAuth();
-  const { conversations } = useConversations(user?.uid ?? null);
+  const { conversations, receivedAt } = useConversations(user?.uid ?? null);
+  const typingByConversation = useTypingStatus(conversations, receivedAt, user?.uid ?? null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [groupModal, setGroupModal] = useState<GroupModalState | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -109,6 +111,7 @@ export default function Chats() {
     <div className="h-screen w-full flex overflow-hidden">
       <ConversationList
         conversations={conversations}
+        typingByConversation={typingByConversation}
         activeConversationId={activeId}
         onSelect={setActiveId}
         onStartConversation={handleStartConversation}
@@ -118,6 +121,7 @@ export default function Chats() {
       />
       <MessageArea
         conversation={activeConversation}
+        typingUids={activeId ? typingByConversation.get(activeId) : undefined}
         onBack={() => setActiveId(null)}
         onAddPeople={openAddPeople}
         onCreateGroupWithUser={openCreateGroupWithUser}

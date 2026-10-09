@@ -29,7 +29,7 @@ Use **npm** only. The lockfile is `package-lock.json`; do not use yarn, pnpm or 
 
 After changing code, run `npm run lint` and resolve what it reports in the files you touched. `npm run build` is the only type-check, and it also type-checks the tests.
 
-Tests are `*.test.ts` files beside the code under `src/lib/`. They run in Node with Firestore and the key store mocked, so they need no Firebase project. They cover `messageCrypto`, `keyManager`, `deviceLink` and `parseMessage`. Add or update a test when you change one of those. There are no component tests and no tests for the Firestore rules.
+Tests are `*.test.ts` files beside the code under `src/lib/`. They run in Node with Firestore and the key store mocked, so they need no Firebase project. They cover `messageCrypto`, `keyManager`, `deviceLink`, `parseMessage` and `typing`. Add or update a test when you change one of those. There are no component tests and no tests for the Firestore rules.
 
 ## Rules
 
@@ -82,6 +82,16 @@ Generating a key for an account that already has a published one silently breaks
 - **The conversation doc is a denormalised summary** (`lastMessage`, `unreadCount.{uid}`, `lastRead.{uid}`), written in the same batch as the message. The preview for a direct message is a fixed placeholder string, never the plaintext.
 - **Direct conversation ids** are the two uids sorted and joined with `_` (`getConversationId`). Group ids are auto-generated.
 
+### Typing status
+
+`typing.{uid}` on the conversation doc is the server time of that person's last announcement. It works in direct and group chats, and it is metadata the server can read, like read receipts. Never describe it as encrypted.
+
+- **Never queued or replayed.** Firestore queues a write made offline and replays it on reconnect, so `setTyping` is only called while online (`useTypingSignal`, `src/hooks/useTypingSignal.ts`). `clearTyping` is safe at any time.
+- **Typing ends with a clear:** after `TYPING_IDLE_MS` without a keystroke, on an emptied field, on leaving the chat, and inside the `sendMessage` batch, so the dots and the new message swap in one snapshot.
+- **Readers judge an entry against their own clock.** `getTypingUids` in `src/lib/typing.ts` ignores an entry more than `TYPING_TTL_MS` away in either direction, which covers a writer that vanished. Keep the TTL well above `TYPING_REFRESH_MS`; the gap is the tolerance for clock skew between devices.
+- **Rendering cannot read the clock** (`react-hooks/purity`). `useConversations` stamps `receivedAt` when a snapshot arrives, and `useTypingStatus` uses it as "now", with a timer for the next expiry.
+- **The setting is one-way.** With "Typing indicators" off (`weakchat:typingIndicators`), others do not see you typing and you still see them, the same as read receipts.
+
 ### Device linking
 
 `src/lib/crypto/deviceLink.ts` moves the private key to a new device. The new device shows a 16-character code and writes a pending session under `users/{uid}/linkSessions/{sessionId}`. An existing device enters the code in Settings, wraps the key under an ephemeral ECDH secret combined with a secret derived from the code, and writes it back. Only the wrapped key ever reaches Firestore.
@@ -104,6 +114,7 @@ Security rules are in `firestore.rules`. The composite index and the TTL policy 
 - When a change adds a new read or write, update `firestore.rules` in the same change.
 - The rules restrict `users/{uid}/linkSessions` to the account owner, and let a session go only from `pending` to `ready`, once. The linked key's secrecy rests on the linking code, not on these rules.
 - The rules make `publicKey` write-once, make messages immutable, and reject a plaintext message in a direct chat.
+- The rules let a participant set or clear only their own `typing` entry. Every other field of a conversation doc is open to any participant.
 - `deleteAccount` in `src/lib/account.ts` deletes `users/{uid}` with its devices and link sessions, then the Auth user, then the local key and cache. It does not delete conversations or messages, and the UI must not say that it does.
 
 ### Offline behaviour
@@ -133,7 +144,7 @@ Every screen is on the design system. The migration from the older palette finis
 - **Class merging.** `cn()` is configured with the design-system text, radius, shadow, spacing and animation names. Add a new token name there as well as to `@theme`, or `cn()` will drop it when it meets a colour class.
 - **Font loading.** Outfit ships with the app from `@fontsource-variable/outfit`, declared as the family `Outfit` in `src/index.css` and precached by Workbox.
 - **Icons.** `Icon` in `src/components/ui/Icon.tsx` holds the design system's 24 glyphs, plus the glyphs it does not draw (close, settings, eye and others), which come from `lucide-react` at the same stroke. Nothing else imports `lucide-react`.
-- **Components.** `Icon`, `IconButton`, `Button`, `Badge`, `Avatar`, `DeliveryStatus`, `MessageBubble`, `SystemNotice`, `Composer`, `ChatListItem`, `ChatHeader` and `ConnectionBanner` are built from the design system. `TypingIndicator` and `SafetyNumber` are not built, because the app has neither feature.
+- **Components.** `Icon`, `IconButton`, `Button`, `Badge`, `Avatar`, `DeliveryStatus`, `MessageBubble`, `SystemNotice`, `Composer`, `ChatListItem`, `ChatHeader`, `ConnectionBanner` and `TypingIndicator` are built from the design system. `SafetyNumber` is not built, because the app has no such feature.
 - **This app's own.** For what the design system does not specify:
   - `Modal`, `Popover`, `ToggleRow`, `SearchField`, `SegmentedControl`, `Notice` and `LoadingScreen` in `src/components/ui/`
   - `Field` in `src/components/`
@@ -143,6 +154,7 @@ Every screen is on the design system. The migration from the older palette finis
 - **Sign-in and sign-up.** Two pages, `/login` and `/signup`, inside the `AuthLayout` layout route, which stays mounted when one links to the other. Each is one column on `surface`: the wordmark, a `display` title, the form, one primary button and a link to the other page. `AuthPattern` draws scattered noodles in `line` behind both, and the `auth-clearing` utility clears the pattern around the column. The pattern is decoration for these two pages only.
 - **Gates and prompts.** `ProtectedRoute` and `IdentityKeyGate` share `LoadingScreen`. The link-code screen shows the code in the `safety` style and carries no glyph, because `lock`, `key` and `shield-check` have fixed meanings. `PwaUpdatePrompt` is a `surface-raised` toast.
 - **Chat screens.** The thread opens with the encryption notice in a direct chat, without "and calls", and with "Messages in this group are not end-to-end encrypted." in a group. `ConnectionBanner` on the chat list is the only connection display. It carries no count, because there is no outbox to count.
+- **Typing.** `TypingIndicator` sits at the bottom of the thread, indented in a group, and the chat list row shows `typing…` or `Mara is typing…` in `brand` in place of the preview. Both are hidden while offline. The thread header shows nothing for typing. The dots move as a wave, each rising 4px and dipping 1.5px in turn; this is a deliberate departure from the design system's smaller bounce. Each dot's delay is an inline style, because the `animate-*` class is an `animation` shorthand and resets a delay set by another class. This has not been checked in a browser.
 - **Delivery.** `createdAt === null` is `queued` when offline and `sending` when online. A set `createdAt` is `sent`, and `isMessageReadByAll` is `read`. Nothing produces `delivered` or `failed`. Chat list rows use the same mapping.
 - **Direct-message preview.** `DIRECT_MESSAGE_PREVIEW` in `src/lib/chat.ts` is what `sendMessage` stores and what the chat list renders for any direct chat, whatever string the conversation doc holds.
 - **Settings.** Every section is a `SettingsSection`; theme, text size and timestamp are `SegmentedControl`s; switches are `ToggleRow`. `danger` appears only in `DeleteAccountModal`. "Forget" and "Remove from list" are `secondary`, because they edit a cosmetic list. "Link a new device" stays enabled offline and the sheet reports the connection. `ThemeContext` sets the `theme-color` meta from the computed `surface` token.
@@ -164,7 +176,7 @@ A search over `src/` must keep finding none of these:
 - For colour, use design-system token names and values. Add a missing token to `@theme` as a themed variable; never hard-code a value.
 - Do not restyle a screen you were not asked to touch.
 - The design system assumes every chat is encrypted. Here, group chats are not. Never show the encryption notice or any encryption claim in a group chat.
-- The design system specifies features the app does not have yet: calls, reactions, replies, typing, presence, safety numbers, disappearing messages, mute and pin. Do not add UI for a feature that does not exist.
+- The design system specifies features the app does not have yet: calls, reactions, replies, presence, safety numbers, disappearing messages, mute and pin. Do not add UI for a feature that does not exist.
 - The design system does not specify a modal, popover menu, toggle, form field or settings card. Reuse `src/components/ui/`, `src/components/Field.tsx` and `src/components/settings/SettingsSection.tsx` for those, and merge class names with `cn()` from `src/lib/helpers.ts`.
 
 ### Principles

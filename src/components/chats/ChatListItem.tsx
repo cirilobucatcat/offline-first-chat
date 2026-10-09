@@ -17,6 +17,8 @@ interface ChatListItemProps {
   unread?: number;
   /** Delivery state of your own last message. Leave out when the last message is theirs. */
   status?: Delivery;
+  /** e.g. "typing…" or "Mara is typing…". Replaces the sender and the preview. */
+  typing?: string;
   selected?: boolean;
   /** The conversation id, so the row can be found again to give it focus. */
   chatId?: string;
@@ -33,6 +35,7 @@ export function ChatListItem({
   time,
   unread = 0,
   status,
+  typing,
   selected = false,
   chatId,
   onClick,
@@ -65,8 +68,14 @@ export function ChatListItem({
           </span>
           <span className="flex min-w-0 items-center gap-2">
             <span className="min-w-0 flex-1 truncate text-subhead text-ink-muted">
-              {sender && <span className="text-ink">{sender}: </span>}
-              {preview}
+              {typing ? (
+                <span className="text-brand">{typing}</span>
+              ) : (
+                <>
+                  {sender && <span className="text-ink">{sender}: </span>}
+                  {preview}
+                </>
+              )}
             </span>
             <span className="inline-flex min-h-5.5 shrink-0 items-center">
               <Badge count={unread} />

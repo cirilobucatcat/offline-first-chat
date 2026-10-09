@@ -119,6 +119,8 @@
     --animate-bubble-in: bubble-in 150ms ease-out both;
     --animate-sheet-up: sheet-up 240ms ease-out both;
     --animate-clock-hand: clock-hand 1.6s linear infinite;
+    /* backwards, not both: when reduced motion ends the loop, a dot returns to its resting opacity. */
+    --animate-typing-dot: typing-dot 1.4s ease-in-out infinite backwards;
 
     @keyframes bubble-in {
         from {
@@ -136,6 +138,26 @@
     @keyframes clock-hand {
         to {
             transform: rotate(360deg);
+        }
+    }
+
+    /* A crest, then a shallow trough, then a rest while the wave passes along the other dots. */
+    @keyframes typing-dot {
+        0%,
+        60%,
+        100% {
+            opacity: 0.45;
+            transform: translateY(0);
+        }
+
+        22% {
+            opacity: 1;
+            transform: translateY(-4px);
+        }
+
+        44% {
+            opacity: 0.6;
+            transform: translateY(1.5px);
         }
     }
 }

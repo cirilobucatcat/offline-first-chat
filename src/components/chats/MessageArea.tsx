@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { usePeerKeyStatus } from '@/hooks/usePeerKeyStatus';
+import { useTypingSignal } from '@/hooks/useTypingSignal';
 import { Icon } from '../ui/Icon';
 import { Notice } from '../ui/Notice';
 import { Popover, PopoverItem } from '../ui/Popover';
@@ -22,9 +23,15 @@ import { useChatPreferences } from '@/context/ChatPreferencesContext';
 import { ChatHeader } from './ChatHeader';
 import { Composer } from './Composer';
 import { MessageThread } from './MessageThread';
+import { TypingIndicator } from './TypingIndicator';
+
+// How close to the end of the thread still counts as reading the end of it.
+const NEAR_BOTTOM_PX = 96;
 
 interface MessageAreaProps {
   conversation: Conversation | null;
+  /** The other people typing in this conversation right now. */
+  typingUids?: string[];
   onBack: () => void;
   onAddPeople: (conversation: Conversation) => void;
   onCreateGroupWithUser: (participant: ParticipantSeed) => void;
@@ -48,12 +55,17 @@ interface ThreadComposerProps {
 /** Owns the draft, so typing re-renders only the composer and not the thread. */
 function ThreadComposer({ conversation, myUid, privateKey, offline, held, notice, onSendError }: ThreadComposerProps) {
   const [draft, setDraft] = useState('');
+  const { typingIndicators } = useChatPreferences();
+  // Never announced offline: Firestore would queue the write and replay it later.
+  const typing = useTypingSignal(conversation.id, myUid, typingIndicators && !offline);
 
   async function handleSend() {
     if (!myUid || !draft.trim() || held) return;
     const text = draft;
     setDraft('');
     onSendError(null);
+    // sendMessage clears the typing entry in the same batch as the message.
+    typing.reset();
     try {
       await sendMessage(conversation.id, myUid, conversation.participants, text, {
         isGroup: conversation.isGroup,
@@ -76,6 +88,8 @@ function ThreadComposer({ conversation, myUid, privateKey, offline, held, notice
       onChange={(value) => {
         setDraft(value);
         onSendError(null);
+        if (value.trim()) typing.keystroke();
+        else typing.stop();
       }}
       onSend={handleSend}
       offline={offline}
@@ -85,7 +99,15 @@ function ThreadComposer({ conversation, myUid, privateKey, offline, held, notice
   );
 }
 
-export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWithUser, mobileHidden = false, paneRef }: MessageAreaProps) {
+export function MessageArea({
+  conversation,
+  typingUids,
+  onBack,
+  onAddPeople,
+  onCreateGroupWithUser,
+  mobileHidden = false,
+  paneRef,
+}: MessageAreaProps) {
   const { user } = useAuth();
   const { privateKey } = useMyIdentityKey();
   const { timestampFormat, readReceipts } = useChatPreferences();
@@ -113,6 +135,17 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
+
+  // The typing dots follow someone who is reading the end of the thread, and
+  // never pull back someone who has scrolled up into the history.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const someoneTyping = !!typingUids && typingUids.length > 0;
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!someoneTyping || !scroller) return;
+    const fromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+    if (fromBottom <= NEAR_BOTTOM_PX) bottomRef.current?.scrollIntoView({ block: 'end' });
+  }, [someoneTyping]);
 
   // Screen readers hear a message that arrives while the chat is open. The history
   // that loads with the chat is not read out, and neither are your own messages.
@@ -170,6 +203,9 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
 
   const offline = networkStatus === 'offline';
   const memberCount = conversation.participants.length;
+  // Named only when one person is typing; otherwise the label says "Someone".
+  const typingName =
+    typingUids?.length === 1 ? conversation.participantInfo[typingUids[0]]?.name?.split(' ')[0] : undefined;
 
   const composerNotice = sendHeld ? (
     <p role='status' className='flex items-start gap-2 px-4 pt-2 text-footnote text-ink-muted'>
@@ -216,6 +252,7 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
         <AuthPattern />
         {/* Focusable, so the thread can be scrolled from the keyboard. */}
         <div
+          ref={scrollRef}
           tabIndex={0}
           role='region'
           aria-label='Messages'
@@ -228,6 +265,8 @@ export function MessageArea({ conversation, onBack, onAddPeople, onCreateGroupWi
             offline={offline}
             hour12={timestampFormat === '12h'}
           />
+          {/* In a group, indented past the avatar column so it lines up with incoming bubbles. */}
+          {someoneTyping && <TypingIndicator name={typingName} className={conversation.isGroup ? 'pl-9' : undefined} />}
           <div ref={bottomRef} />
         </div>
       </div>

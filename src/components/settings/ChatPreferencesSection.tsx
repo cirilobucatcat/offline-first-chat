@@ -9,7 +9,8 @@ const TIMESTAMP_OPTIONS: { value: TimestampFormat; label: string }[] = [
 ];
 
 export function ChatPreferencesSection() {
-    const { timestampFormat, setTimestampFormat, readReceipts, setReadReceipts } = useChatPreferences();
+    const { timestampFormat, setTimestampFormat, readReceipts, setReadReceipts, typingIndicators, setTypingIndicators } =
+        useChatPreferences();
 
     return (
         <SettingsSection id="chat-preferences-heading" title="Chat preferences" description="How messages are displayed">
@@ -28,6 +29,16 @@ export function ChatPreferencesSection() {
                 }
                 checked={readReceipts}
                 onChange={setReadReceipts}
+            />
+            <ToggleRow
+                label="Typing indicators"
+                description={
+                    typingIndicators
+                        ? "Others can see when you're typing"
+                        : "Others won't see when you're typing — you still see when they are"
+                }
+                checked={typingIndicators}
+                onChange={setTypingIndicators}
             />
         </SettingsSection>
     );
