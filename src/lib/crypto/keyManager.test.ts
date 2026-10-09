@@ -106,6 +106,34 @@ describe('getOrCreateIdentityKeyPair', () => {
     expect(localKeys.has('alice')).toBe(false);
   });
 
+  it('shares one run between concurrent calls so only one key is generated', async () => {
+    getDoc.mockResolvedValue(userDoc({ name: 'Alice' }));
+
+    const [a, b] = await Promise.all([
+      getOrCreateIdentityKeyPair('alice'),
+      getOrCreateIdentityKeyPair('alice'),
+    ]);
+
+    expect(a.status).toBe('created');
+    expect(b).toBe(a);
+    expect(setDoc).toHaveBeenCalledTimes(1);
+    expect(localKeys.has('alice')).toBe(true);
+  });
+
+  it('keeps a key a concurrent run stored when its own publish is rejected', async () => {
+    getDoc.mockResolvedValue(userDoc({ name: 'Alice' }));
+    const winner = await generateIdentity();
+    setDoc.mockImplementation(async () => {
+      localKeys.set('alice', { uid: 'alice', ...winner, createdAt: 2 });
+      throw new Error('permission-denied');
+    });
+
+    const result = await getOrCreateIdentityKeyPair('alice');
+
+    expect(result.status).toBe('error');
+    expect(localKeys.get('alice')?.publicKey).toBe(winner.publicKey);
+  });
+
   it('reports an error, and generates nothing, when Firestore cannot be read', async () => {
     getDoc.mockRejectedValue(new Error('unavailable'));
 

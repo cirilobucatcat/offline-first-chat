@@ -74,14 +74,45 @@ async function publishPublicKey(
   await setDoc(doc(db, 'users', uid), { publicKey: jwk }, { merge: true });
 }
 
+async function sameKey(a: CryptoKey, b: CryptoKey): Promise<boolean> {
+  const [ja, jb] = await Promise.all([
+    crypto.subtle.exportKey('jwk', a),
+    crypto.subtle.exportKey('jwk', b),
+  ]);
+  return ja.x === jb.x && ja.y === jb.y;
+}
+
 /**
  * Ensures the signed-in account has an identity key pair, following the
  * guard order documented above. Call this once per session, right after
  * auth resolves (after your existing ensureUserProfile call).
  */
-export async function getOrCreateIdentityKeyPair(
-  uid: string,
-): Promise<IdentityKeyResult> {
+export function getOrCreateIdentityKeyPair(uid: string): Promise<IdentityKeyResult> {
+  // Two runs for one account must never both reach step 3: each would
+  // generate a key, the loser's rejected publish would delete the local key,
+  // and the winner's key would be the one published. In one page that is
+  // React StrictMode's double effect, so callers share the in-flight run.
+  // Across tabs, a Web Lock makes the second run wait and then find the
+  // first run's key in step 1.
+  const running = inFlight.get(uid);
+  if (running) return running;
+
+  const run = withIdentityLock(uid, () => resolveIdentityKeyPair(uid)).finally(() => {
+    inFlight.delete(uid);
+  });
+  inFlight.set(uid, run);
+  return run;
+}
+
+const inFlight = new Map<string, Promise<IdentityKeyResult>>();
+
+function withIdentityLock<T>(uid: string, task: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks;
+  if (!locks) return task();
+  return locks.request(`weakchat-identity-key:${uid}`, task);
+}
+
+async function resolveIdentityKeyPair(uid: string): Promise<IdentityKeyResult> {
   try {
     // 1. This device.
     const stored = await getStoredKeyPair(uid);
@@ -123,7 +154,11 @@ export async function getOrCreateIdentityKeyPair(
       // rules make publicKey write-once, so this is what happens to the
       // device that loses a first-sign-in race — next time it finds the
       // winner's key in step 2 and goes to 'needs-link'.
-      await deleteStoredKeyPair(uid);
+      // Only remove the key this run saved, never one a concurrent run put there.
+      const current = await getStoredKeyPair(uid).catch(() => null);
+      if (!current || (await sameKey(current.publicKey, keyPair.publicKey))) {
+        await deleteStoredKeyPair(uid);
+      }
       throw error;
     }
 
