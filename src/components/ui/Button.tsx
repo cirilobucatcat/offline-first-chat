@@ -1,5 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { Link, type LinkProps } from 'react-router';
 import { cn } from '@/lib/helpers';
 import { Icon, type IconName } from './Icon';
 
@@ -64,3 +65,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
+
+export interface ButtonLinkProps extends LinkProps, VariantProps<typeof buttonVariants> {}
+
+/** A link drawn as a button, for an action that goes to another page. */
+export function ButtonLink({ className, variant, size, block, ...props }: ButtonLinkProps) {
+  return <Link {...props} className={cn(buttonVariants({ variant, size, block }), className)} />;
+}

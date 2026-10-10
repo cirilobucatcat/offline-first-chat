@@ -22,9 +22,10 @@ import { cn } from '@/lib/helpers';
 
 /**
  * The WeakChat icon set: 24px grid, 1.75 stroke, round caps and joins.
- * Some have fixed meanings: `lock` is for the encryption notice only,
- * `shield-check` a verified contact, `key` a safety-number change,
- * `cloud-off` offline, `clock` waiting on this device.
+ * Some have fixed meanings: `lock` is for the encryption notice and the
+ * landing page's encryption card, `shield-check` a verified contact,
+ * `key` a safety-number change, `cloud-off` offline, `clock` waiting on
+ * this device.
  */
 const GLYPHS = {
   send: (

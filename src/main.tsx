@@ -2,9 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { AuthProvider } from './context/AuthContext';
-import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
+import { createBrowserRouter, RouterProvider } from 'react-router';
 import { ProtectedRoute } from './components/routes/ProtectedRoutes';
 import Chat from './pages/Chats';
+import Landing from './pages/Landing';
 import NotFound from './pages/NotFound';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
@@ -40,7 +41,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <Navigate to="/chat" />
+    element: <Landing />
   },
   {
     path: '*',
